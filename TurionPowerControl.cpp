@@ -24,6 +24,7 @@
 //Include for processor families:
 #include "Griffin.h"
 #include "K10Processor.h"
+#include "Kaveri.h"
 #include "Brazos.h"
 #include "Llano.h"
 #include "Interlagos.h"
@@ -104,6 +105,10 @@ int closeWinRing0 () {
 //Checks for all modules available and returns the right Processor object
 //for current system. If there isn't a valid module, returns null
 Processor *getSupportedProcessor () {
+
+	if (Kaveri::isProcessorSupported()) {
+		return (class Processor *)new Kaveri ();
+	}
 
 	if (K10Processor::isProcessorSupported()) {
 		return (class Processor *)new K10Processor ();

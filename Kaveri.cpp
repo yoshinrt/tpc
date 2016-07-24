@@ -13,15 +13,15 @@
 #endif
 
 #include "Processor.h"
-#include "Interlagos.h"
+#include "Kaveri.h"
 #include "PCIRegObject.h"
 #include "MSRObject.h"
 #include "PerformanceCounter.h"
 
 #include "sysdep.h"
 
-//Interlagos class constructor
-Interlagos::Interlagos ()
+//Kaveri class constructor
+Kaveri::Kaveri ()
 {
 	DWORD eax,ebx,ecx,edx;
 	PCIRegObject *pciReg60;
@@ -34,7 +34,7 @@ Interlagos::Interlagos ()
 	//Check extended CpuID Information - CPUID Function 0000_0001 reg EAX
 	if (Cpuid(0x1,&eax,&ebx,&ecx,&edx)!=TRUE)
 	{
-		printf ("Interlagos::Interlagos - Fatal error during querying for Cpuid(0x1) instruction.\n");
+		printf ("Kaveri::Kaveri - Fatal error during querying for Cpuid(0x1) instruction.\n");
 		return;
 	}
 	
@@ -47,7 +47,7 @@ Interlagos::Interlagos ()
 	//Check Brand ID and Package type - CPUID Function 8000_0001 reg EBX
 	if (Cpuid(0x80000001,&eax,&ebx,&ecx,&edx)!=TRUE)
 	{
-		printf ("Interlagos::Interlagos - Fatal error during querying for Cpuid(0x80000001) instruction.\n");
+		printf ("Kaveri::Kaveri - Fatal error during querying for Cpuid(0x80000001) instruction.\n");
 		return;
 	}
 
@@ -76,7 +76,7 @@ Interlagos::Interlagos ()
 	pciReg60 = new PCIRegObject();
 	pciReg160 = new PCIRegObject();
 
-	//Are the 0x60 and 0x160 registers valid for Interlagos...they should be, the same board is used for MagnyCours and Interlagos
+	//Are the 0x60 and 0x160 registers valid for Kaveri...they should be, the same board is used for MagnyCours and Kaveri
 	pciReg60Success = pciReg60->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_HT_CONFIG, 0x60, getNodeMask(0));
 	pciReg160Success = pciReg160->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_HT_CONFIG, 0x160, getNodeMask(0));
 
@@ -96,44 +96,44 @@ Interlagos::Interlagos ()
 	//Check how many physical cores are present - CPUID Function 8000_0008 reg ECX
 	if (Cpuid(0x80000008, &eax, &ebx, &ecx, &edx) != TRUE)
 	{
-		printf("Interlagos::Interlagos- Fatal error during querying for Cpuid(0x80000008) instruction.\n");
+		printf("Kaveri::Kaveri- Fatal error during querying for Cpuid(0x80000008) instruction.\n");
 		return;
 	}
 
-	cores = ((ecx & 0xff) + 1) / 2; /* cores per node */
+	cores = ((ecx & 0xff) + 1); /* cores per node */
 	
 	/*
 	 * Normally we assume that nodes per package is always 1 (one physical processor = one package), but
-	 * with Interlagos chips (modelExtended>=8) this is not true since they share a single package for two
+	 * with Kaveri chips (modelExtended>=8) this is not true since they share a single package for two
 	 * chips (16 cores distributed on a single package but on two nodes).
 	 */
 	int nodes_per_package = 1;
 	if (modelExtended >= 8)
 	{
-		PCIRegObject *pci_F3xE8_NbCapReg = new PCIRegObject();
+		PCIRegObject *pci = new PCIRegObject();
 		
-		if ((pci_F3xE8_NbCapReg->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xE8, getNodeMask(0))) == TRUE)
+		if ((pci->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xE8, getNodeMask(0))) == TRUE)
 		{
-			if (pci_F3xE8_NbCapReg->getBits(0, 29, 1))
+			if (pci->getBits(0, 29, 1))
 			{
 				nodes_per_package = 2;
 			}
 		}
 		else
 		{
-			printf ("Interlagos::Interlagos - Error discovering nodes per package, results may be unreliable\n");
+			printf ("Kaveri::Kaveri - Error discovering nodes per package, results may be unreliable\n");
 		}
 
-		free(pci_F3xE8_NbCapReg);
+		free(pci);
 	}
 	
 	setProcessorNodes(nodes);
 	setProcessorCores(cores);
 	setNode(0);
 	setBoostStates (getNumBoostStates());
-	setPowerStates(7);
+	setPowerStates(8);
 	setProcessorIdentifier(PROCESSOR_15H_FAMILY);
-	setProcessorStrId("Family 15h (Bulldozer/Interlagos/Valencia) Processor");
+	setProcessorStrId("Family 15h (Kaveri) Processor");
 }
 
 /*
@@ -141,7 +141,7 @@ Interlagos::Interlagos ()
  * without instantiating an object. This method that detects if the system
  * has a processor supported by this module
 */
-bool Interlagos::isProcessorSupported() {
+bool Kaveri::isProcessorSupported() {
 
 	DWORD eax;
 	DWORD ebx;
@@ -171,11 +171,15 @@ bool Interlagos::isProcessorSupported() {
 	if (familyExtended != 0x15)
 	  return false;
 	
-	//Detects a Family 15h processor, i.e. Bulldozer/Interlagos/Valencia
+	int model = (eax & 0xf0) >> 4;
+	int modelExtended = ((eax & 0xf0000) >> 12) + model; /* family 15h: modelExtended is valid */
+	if( modelExtended < 0x30 || 0x3F < modelExtended ) return FALSE;
+	
+	//Detects a Family 15h processor, i.e. Bulldozer/Kaveri/Valencia
 	return true;
 }
 
-void Interlagos::showFamilySpecs()
+void Kaveri::showFamilySpecs()
 {
 	DWORD psi_l_enable;
 	DWORD psi_thres;
@@ -273,7 +277,7 @@ void Interlagos::showFamilySpecs()
 
 //Miscellaneous function inherited by Processor abstract class and that
 //needs to be reworked for family 10h
-float Interlagos::convertVIDtoVcore(DWORD curVid)
+float Kaveri::convertVIDtoVcore(DWORD curVid)
 {
 
 	/*How to calculate VID from Vcore. It doesn't matter if your processor is working in
@@ -291,39 +295,10 @@ float Interlagos::convertVIDtoVcore(DWORD curVid)
 
 	 */
 
-	float curVcore;
-
-	if (getPVIMode())
-	{
-		if (curVid >= 0x5d)
-		{
-			curVcore = 0.375;
-		}
-		else
-		{
-			if (curVid < 0x3f)
-			{
-				curVid = (curVid >> 1) << 1;
-			}
-			curVcore = (float) (1.550 - (0.0125 * curVid));
-		}
-	}
-	else
-	{
-		if (curVid >= 0x7c)
-		{
-			curVcore = 0;
-		}
-		else
-		{
-			curVcore = (float) (1.550 - (0.0125 * curVid));
-		}
-	}
-
-	return curVcore;
+	return 1.55 - ( curVid * 0.00625 );
 }
 
-DWORD Interlagos::convertVcoretoVID (float vcore)
+DWORD Kaveri::convertVcoretoVID (float vcore)
 {
 	DWORD vid;
 
@@ -333,12 +308,12 @@ DWORD Interlagos::convertVcoretoVID (float vcore)
 
 }
 
-DWORD Interlagos::convertFDtoFreq (DWORD curFid, DWORD curDid)
+DWORD Kaveri::convertFDtoFreq (DWORD curFid, DWORD curDid)
 {
 	return (100 * (curFid + 0x10)) / (1 << curDid);
 }
 
-void Interlagos::convertFreqtoFD(DWORD freq, int *oFid, int *oDid)
+void Kaveri::convertFreqtoFD(DWORD freq, int *oFid, int *oDid)
 {
 	/*Needs to calculate the approximate frequency using FID and DID right
 	 combinations. Take in account that base frequency is always 200 MHz
@@ -398,14 +373,14 @@ void Interlagos::convertFreqtoFD(DWORD freq, int *oFid, int *oDid)
 
 //-----------------------setVID-----------------------------
 //Overloads abstract class setVID to allow per-core personalization
-void Interlagos::setVID (PState ps, DWORD vid)
+void Kaveri::setVID (PState ps, DWORD vid)
 {
 
 	MSRObject *msrObject;
 
 	if ((vid > minVID()) || (vid < maxVID()))
 	{
-		printf ("Interlagos.cpp: VID Allowed range %d-%d\n", minVID(), maxVID());
+		printf ("Kaveri.cpp: VID Allowed range %d-%d\n", minVID(), maxVID());
 		return;
 	}
 
@@ -413,7 +388,7 @@ void Interlagos::setVID (PState ps, DWORD vid)
 
 	if (!msrObject->readMSR(BASE_15H_PSTATEMSR + ps.getPState(), getMask ()))
 	{
-		printf ("Interlagos.cpp: unable to read MSR\n");
+		printf ("Kaveri.cpp: unable to read MSR\n");
 		free (msrObject);
 		return;
 	}
@@ -423,7 +398,7 @@ void Interlagos::setVID (PState ps, DWORD vid)
 
 	if (!msrObject->writeMSR())
 	{
-		printf ("Interlagos.cpp: unable to write MSR\n");
+		printf ("Kaveri.cpp: unable to write MSR\n");
 		free (msrObject);
 		return;
 	}
@@ -435,7 +410,7 @@ void Interlagos::setVID (PState ps, DWORD vid)
 
 //-----------------------setFID-----------------------------
 //Overloads abstract Processor method to allow per-core personalization
-void Interlagos::setFID(PState ps, float floatFid)
+void Kaveri::setFID(PState ps, float floatFid)
 {
 	unsigned int fid;
 
@@ -445,7 +420,7 @@ void Interlagos::setFID(PState ps, float floatFid)
 
 	if (fid > 63)
 	{
-		printf("Interlagos.cpp: FID Allowed range 0-63\n");
+		printf("Kaveri.cpp: FID Allowed range 0-63\n");
 		return;
 	}
 
@@ -453,7 +428,7 @@ void Interlagos::setFID(PState ps, float floatFid)
 
 	if (!msrObject->readMSR(BASE_15H_PSTATEMSR + ps.getPState(), getMask()))
 	{
-		printf("Interlagos.cpp: unable to read MSR\n");
+		printf("Kaveri.cpp: unable to read MSR\n");
 		free(msrObject);
 		return;
 	}
@@ -463,7 +438,7 @@ void Interlagos::setFID(PState ps, float floatFid)
 
 	if (!msrObject->writeMSR())
 	{
-		printf("Interlagos.cpp: unable to write MSR\n");
+		printf("Kaveri.cpp: unable to write MSR\n");
 		free(msrObject);
 		return;
 	}
@@ -475,7 +450,7 @@ void Interlagos::setFID(PState ps, float floatFid)
 
 //-----------------------setDID-----------------------------
 //Overloads abstract Processor method to allow per-core personalization
-void Interlagos::setDID(PState ps, float floatDid)
+void Kaveri::setDID(PState ps, float floatDid)
 {
 
 	unsigned int did;
@@ -485,7 +460,7 @@ void Interlagos::setDID(PState ps, float floatDid)
 
 	if (did > 4)
 	{
-		printf("Interlagos.cpp: DID Allowed range 0-4\n");
+		printf("Kaveri.cpp: DID Allowed range 0-4\n");
 		return;
 	}
 
@@ -493,7 +468,7 @@ void Interlagos::setDID(PState ps, float floatDid)
 
 	if (!msrObject->readMSR(BASE_15H_PSTATEMSR + ps.getPState(), getMask()))
 	{
-		printf("Interlagos.cpp: unable to read MSR\n");
+		printf("Kaveri.cpp: unable to read MSR\n");
 		free(msrObject);
 		return;
 	}
@@ -503,7 +478,7 @@ void Interlagos::setDID(PState ps, float floatDid)
 
 	if (!msrObject->writeMSR())
 	{
-		printf("Interlagos.cpp: unable to write MSR\n");
+		printf("Kaveri.cpp: unable to write MSR\n");
 		free(msrObject);
 		return;
 	}
@@ -515,7 +490,24 @@ void Interlagos::setDID(PState ps, float floatDid)
 }
 
 //-----------------------getVID-----------------------------
-DWORD Interlagos::getVID (PState ps)
+/*
+DWORD Kaveri::getVID (PState ps)
+{
+	DWORD dwData;
+	
+	if (
+		!WritePciConfig(0, 0, 0xB8, 0x3FD00 + ps.getPState() * 0x14) ||
+		!ReadPciConfig(0, 0, 0xBC, &dwData)
+	){
+		printf ("Kaveri.cpp::getVID - unable to read PCI\n");
+		return false;
+	}
+printf( "<<%08X>>", dwData );
+	return GetBits( dwData, 8, 8 );
+}
+*/
+
+DWORD Kaveri::getVID (PState ps)
 {
 
 	MSRObject *msrObject;
@@ -532,7 +524,7 @@ DWORD Interlagos::getVID (PState ps)
 
 	//Returns data for the first cpu in cpuMask.
 	//VID is stored after 9 bits of offset and is 7 bits wide
-	vid = msrObject->getBitsLow(0, 9, 7);
+	vid = msrObject->getBitsLow(0, 9, 8);
 
 	free (msrObject);
 
@@ -541,7 +533,7 @@ DWORD Interlagos::getVID (PState ps)
 }
 
 //-----------------------getFID-----------------------------
-float Interlagos::getFID (PState ps)
+float Kaveri::getFID (PState ps)
 {
 
 	MSRObject *msrObject;
@@ -551,7 +543,7 @@ float Interlagos::getFID (PState ps)
 
 	if (!msrObject->readMSR(BASE_15H_PSTATEMSR + ps.getPState(), getMask()))
 	{
-		printf ("Interlagos.cpp::getFID - unable to read MSR\n");
+		printf ("Kaveri.cpp::getFID - unable to read MSR\n");
 		free (msrObject);
 		return false;
 	}
@@ -566,7 +558,7 @@ float Interlagos::getFID (PState ps)
 }
 
 //-----------------------getDID-----------------------------
-float Interlagos::getDID (PState ps)
+float Kaveri::getDID (PState ps)
 {
 
 	MSRObject *msrObject;
@@ -576,7 +568,7 @@ float Interlagos::getDID (PState ps)
 
 	if (!msrObject->readMSR(BASE_15H_PSTATEMSR + ps.getPState(), getMask()))
 	{
-		printf ("Interlagos.cpp::getDID - unable to read MSR\n");
+		printf ("Kaveri.cpp::getDID - unable to read MSR\n");
 		free (msrObject);
 		return false;
 	}
@@ -591,7 +583,7 @@ float Interlagos::getDID (PState ps)
 }
 
 //-----------------------setFrequency-----------------------------
-void Interlagos::setFrequency (PState ps, DWORD freq)
+void Kaveri::setFrequency (PState ps, DWORD freq)
 {
 
 	int fid, did;
@@ -605,7 +597,7 @@ void Interlagos::setFrequency (PState ps, DWORD freq)
 }
 
 //-----------------------setVCore-----------------------------
-void Interlagos::setVCore (PState ps, float vcore)
+void Kaveri::setVCore (PState ps, float vcore)
 {
 
 	DWORD vid;
@@ -634,7 +626,7 @@ void Interlagos::setVCore (PState ps, float vcore)
 }
 
 //-----------------------getFrequency-----------------------------
-DWORD Interlagos::getFrequency (PState ps)
+DWORD Kaveri::getFrequency (PState ps)
 {
 
 	DWORD curFid, curDid;
@@ -649,7 +641,7 @@ DWORD Interlagos::getFrequency (PState ps)
 }
 
 //-----------------------getVCore-----------------------------
-float Interlagos::getVCore(PState ps)
+float Kaveri::getVCore(PState ps)
 {
 	DWORD curVid;
 	float curVcore;
@@ -662,7 +654,7 @@ float Interlagos::getVCore(PState ps)
 }
 
 
-bool Interlagos::getPVIMode ()
+bool Kaveri::getPVIMode ()
 {
 
 	PCIRegObject *pciRegObject;
@@ -672,7 +664,7 @@ bool Interlagos::getPVIMode ()
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xa0, getNodeMask()))
 	{
-		printf ("Interlagos.cpp::getPVIMode - Unable to read PCI register\n");
+		printf ("Kaveri.cpp::getPVIMode - Unable to read PCI register\n");
 		return false;
 	}
 
@@ -685,7 +677,7 @@ bool Interlagos::getPVIMode ()
 }
 
 //PStates enable/disable/peek
-void Interlagos::pStateDisable (PState ps)
+void Kaveri::pStateDisable (PState ps)
 {
 	MSRObject *msrObject;
 
@@ -693,7 +685,7 @@ void Interlagos::pStateDisable (PState ps)
 
 	if (!msrObject->readMSR(BASE_15H_PSTATEMSR + ps.getPState(), getMask ()))
 	{
-		printf ("Interlagos.cpp::pStateDisable - unable to read MSR\n");
+		printf ("Kaveri.cpp::pStateDisable - unable to read MSR\n");
 		free (msrObject);
 		return;
 	}
@@ -703,7 +695,7 @@ void Interlagos::pStateDisable (PState ps)
 
 	if (!msrObject->writeMSR())
 	{
-		printf ("Interlagos.cpp::pStateDisable - unable to write MSR\n");
+		printf ("Kaveri.cpp::pStateDisable - unable to write MSR\n");
 		free (msrObject);
 		return;
 	}
@@ -713,7 +705,7 @@ void Interlagos::pStateDisable (PState ps)
 	return;
 }
 
-void Interlagos::pStateEnable (PState ps)
+void Kaveri::pStateEnable (PState ps)
 {
 	MSRObject *msrObject;
 
@@ -721,7 +713,7 @@ void Interlagos::pStateEnable (PState ps)
 
 	if (!msrObject->readMSR(BASE_15H_PSTATEMSR + ps.getPState(), getMask ()))
 	{
-		printf ("Interlagos.cpp::pStateEnable - unable to read MSR\n");
+		printf ("Kaveri.cpp::pStateEnable - unable to read MSR\n");
 		free (msrObject);
 		return;
 	}
@@ -731,7 +723,7 @@ void Interlagos::pStateEnable (PState ps)
 
 	if (!msrObject->writeMSR())
 	{
-		printf ("Interlagos.cpp:pStateEnable - unable to write MSR\n");
+		printf ("Kaveri.cpp:pStateEnable - unable to write MSR\n");
 		free (msrObject);
 		return;
 	}
@@ -741,7 +733,7 @@ void Interlagos::pStateEnable (PState ps)
 	return;
 }
 
-bool Interlagos::pStateEnabled(PState ps)
+bool Kaveri::pStateEnabled(PState ps)
 {
 	MSRObject *msrObject;
 	unsigned int status;
@@ -750,7 +742,7 @@ bool Interlagos::pStateEnabled(PState ps)
 
 	if (!msrObject->readMSR(BASE_15H_PSTATEMSR + ps.getPState(), getMask()))
 	{
-		printf("Interlagos.cpp::pStateEnabled - unable to read MSR\n");
+		printf("Kaveri.cpp::pStateEnabled - unable to read MSR\n");
 		free(msrObject);
 		return false;
 	}
@@ -767,7 +759,7 @@ bool Interlagos::pStateEnabled(PState ps)
 		return true;
 }
 
-void Interlagos::setMaximumPState (PState ps)
+void Kaveri::setMaximumPState (PState ps)
 {
 	PCIRegObject *pciRegObject;
 
@@ -775,7 +767,7 @@ void Interlagos::setMaximumPState (PState ps)
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xdc, getNodeMask()))
 	{
-		printf ("Interlagos.cpp::setMaximumPState - unable to read PCI register\n");
+		printf ("Kaveri.cpp::setMaximumPState - unable to read PCI register\n");
 		free (pciRegObject);
 		return;
 	}
@@ -791,7 +783,7 @@ void Interlagos::setMaximumPState (PState ps)
 
 	if (!pciRegObject->writePCIReg())
 	{
-		printf ("Interlagos.cpp::setMaximumPState - unable to write PCI register\n");
+		printf ("Kaveri.cpp::setMaximumPState - unable to write PCI register\n");
 		free (pciRegObject);
 		return;
 	}
@@ -801,7 +793,7 @@ void Interlagos::setMaximumPState (PState ps)
 	return;
 }
 
-PState Interlagos::getMaximumPState ()
+PState Kaveri::getMaximumPState ()
 {
 	PCIRegObject *pciRegObject;
 	PState pState (0);
@@ -810,7 +802,7 @@ PState Interlagos::getMaximumPState ()
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xdc, getNodeMask()))
 	{
-		printf ("Interlagos.cpp::getMaximumPState - unable to read PCI register\n");
+		printf ("Kaveri.cpp::getMaximumPState - unable to read PCI register\n");
 		free (pciRegObject);
 		return 0;
 	}
@@ -829,7 +821,7 @@ PState Interlagos::getMaximumPState ()
 	return pState;
 }
 
-void Interlagos::setNBVid (PState ps, DWORD nbvid)
+void Kaveri::setNBVid (PState ps, DWORD nbvid)
 {
 	MSRObject *msrObject;
 
@@ -837,7 +829,7 @@ void Interlagos::setNBVid (PState ps, DWORD nbvid)
 
 	if ((nbvid < maxVID()) || (nbvid > minVID()))
 	{
-		printf ("Interlagos.cpp::setNBVid - Northbridge VID Allowed range 0-127\n");
+		printf ("Kaveri.cpp::setNBVid - Northbridge VID Allowed range 0-127\n");
 		return;
 	}
 
@@ -851,7 +843,7 @@ void Interlagos::setNBVid (PState ps, DWORD nbvid)
 
 	if (!msrObject->readMSR(BASE_15H_PSTATEMSR + ps.getPState(), getMask(ALL_NODES, selectedNode)))
 	{
-		printf ("Interlagos::setNBVid - Unable to read MSR\n");
+		printf ("Kaveri::setNBVid - Unable to read MSR\n");
 		free (msrObject);
 		return;
 	}
@@ -861,7 +853,7 @@ void Interlagos::setNBVid (PState ps, DWORD nbvid)
 
 	if (!msrObject->writeMSR())
 	{
-		printf ("Interlagos::setNBVid - Unable to write MSR\n");
+		printf ("Kaveri::setNBVid - Unable to write MSR\n");
 		free (msrObject);
 		return;
 	}
@@ -871,7 +863,7 @@ void Interlagos::setNBVid (PState ps, DWORD nbvid)
 	return;
 }
 
-void Interlagos::setNBDid (PState ps, DWORD nbdid)
+void Kaveri::setNBDid (PState ps, DWORD nbdid)
 {
 	MSRObject *msrObject;
 
@@ -885,7 +877,7 @@ void Interlagos::setNBDid (PState ps, DWORD nbdid)
 
 	if (!msrObject->readMSR(BASE_15H_PSTATEMSR + ps.getPState(), getMask(ALL_CORES, selectedNode)))
 	{
-		printf ("Interlagos::setNBDid - Unable to read MSR\n");
+		printf ("Kaveri::setNBDid - Unable to read MSR\n");
 		free (msrObject);
 		return;
 	}
@@ -895,7 +887,7 @@ void Interlagos::setNBDid (PState ps, DWORD nbdid)
 
 	if (!msrObject->writeMSR())
 	{
-		printf ("Interlagos::setNBDid - Unable to write MSR\n");
+		printf ("Kaveri::setNBDid - Unable to write MSR\n");
 		free (msrObject);
 		return;
 	}
@@ -910,7 +902,7 @@ void Interlagos::setNBDid (PState ps, DWORD nbdid)
  *MSR and is available per-core
  */
 
-DWORD Interlagos::getMaxNBFrequency()
+DWORD Kaveri::getMaxNBFrequency()
 {
 	MSRObject *msrObject;
 	DWORD maxNBFid;
@@ -919,7 +911,7 @@ DWORD Interlagos::getMaxNBFrequency()
 
 	if (!msrObject->readMSR(COFVID_STATUS_REG, getMask(0, selectedNode)))
 	{
-		printf("Interlagos::getMaxNBFrequency - Unable to read MSR\n");
+		printf("Kaveri::getMaxNBFrequency - Unable to read MSR\n");
 		free(msrObject);
 		return false;
 	}
@@ -937,7 +929,7 @@ DWORD Interlagos::getMaxNBFrequency()
 
 }
 
-void Interlagos::forcePState (PState ps)
+void Kaveri::forcePState (PState ps)
 {
 	MSRObject *msrObject;
 	DWORD boostState = getNumBoostStates();
@@ -946,7 +938,7 @@ void Interlagos::forcePState (PState ps)
 	
 	if (ps.getPState() > 6 - boostState)
 	{
-		printf ("Interlagos.cpp::forcePState - Forcing PStates on a boosted processor ignores boosted PStates\n");
+		printf ("Kaveri.cpp::forcePState - Forcing PStates on a boosted processor ignores boosted PStates\n");
 		printf ("Subtract %d from the PState entered\n", boostState);
 		return;
 	}
@@ -954,7 +946,7 @@ void Interlagos::forcePState (PState ps)
 	//Add Boost States as C001_0062 uses software PState Numbering - pg560
 	if (!msrObject->readMSR(BASE_PSTATE_CTRL_REG, getMask()))
 	{
-		printf ("Interlagos.cpp::forcePState - unable to read MSR\n");
+		printf ("Kaveri.cpp::forcePState - unable to read MSR\n");
 		free (msrObject);
 		return;
 	}
@@ -965,7 +957,7 @@ void Interlagos::forcePState (PState ps)
 
 	if (!msrObject->writeMSR())
 	{
-		printf ("Interlagos.cpp::forcePState - unable to write MSR\n");
+		printf ("Kaveri.cpp::forcePState - unable to write MSR\n");
 		free (msrObject);
 		return;
 	}
@@ -977,7 +969,7 @@ void Interlagos::forcePState (PState ps)
 	return;
 }
 
-DWORD Interlagos::getNBVid()
+DWORD Kaveri::getNBVid()
 {
 	PCIRegObject *pciRegObject;
 	DWORD nbVid;
@@ -989,7 +981,7 @@ DWORD Interlagos::getNBVid()
 	
 	if (!bnbvid)
 	{
-		printf("Interlagos::getNBVid - Unable to read MSR\n");
+		printf("Kaveri::getNBVid - Unable to read MSR\n");
 		free (pciRegObject);
 		return false;
 	}
@@ -1001,7 +993,7 @@ DWORD Interlagos::getNBVid()
 	return nbVid;
 }
 
-DWORD Interlagos::getNBDid ()
+DWORD Kaveri::getNBDid ()
 {
 	PCIRegObject *pciRegObject;
 	DWORD nbDid;
@@ -1013,7 +1005,7 @@ DWORD Interlagos::getNBDid ()
 	
 	if (!bnbdid)
 	{
-		printf("Interlagos::getNBDid - Unable to read MSR\n");
+		printf("Kaveri::getNBDid - Unable to read MSR\n");
 		free (pciRegObject);
 		return false;
 	}
@@ -1025,7 +1017,7 @@ DWORD Interlagos::getNBDid ()
 	return nbDid;
 }
 
-DWORD Interlagos::getNBFid ()
+DWORD Kaveri::getNBFid ()
 {
 	PCIRegObject *pciRegObject;
 	DWORD nbFid;
@@ -1037,7 +1029,7 @@ DWORD Interlagos::getNBFid ()
 	
 	if (!bnbfid)
 	{
-		printf ("Interlagos::getNBFid - Unable to read PCI register\n");
+		printf ("Kaveri::getNBFid - Unable to read PCI register\n");
 		free (pciRegObject);
 		return false;
 	}
@@ -1058,7 +1050,7 @@ DWORD Interlagos::getNBFid ()
 	return nbFid;
 }
 
-DWORD Interlagos::getNBCOF()
+DWORD Kaveri::getNBCOF()
 {
 	//Northbridge Current Operating Frequency
 	//D18F5x[6C:60][NbFid] + 4 / 2 ^ D18F5x[6C:60][NbDid]
@@ -1066,7 +1058,7 @@ DWORD Interlagos::getNBCOF()
 	return ((200 * (getNBFid() + 4)) / (1 << getNBDid()));
 }
 
-void Interlagos::setNBFid(DWORD fid)
+void Kaveri::setNBFid(DWORD fid)
 {
 	PCIRegObject *pciRegObject;
 	unsigned int i, current;
@@ -1084,7 +1076,7 @@ void Interlagos::setNBFid(DWORD fid)
 	
 	if (!bnbfid)
 	{
-		printf("Interlagos::setNBFid - Unable to read PCI register\n");
+		printf("Kaveri::setNBFid - Unable to read PCI register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -1101,7 +1093,7 @@ void Interlagos::setNBFid(DWORD fid)
 
 	if (!pciRegObject->writePCIReg())
 	{
-		printf("Interlagos::setNBFid - Unable to write PCI register\n");
+		printf("Kaveri::setNBFid - Unable to write PCI register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -1112,7 +1104,7 @@ void Interlagos::setNBFid(DWORD fid)
 }
 
 //minVID is reported per-node, so selected core is always discarded
-DWORD Interlagos::minVID ()
+DWORD Kaveri::minVID ()
 {
 	MSRObject *msrObject;
 	DWORD minVid;
@@ -1121,7 +1113,7 @@ DWORD Interlagos::minVID ()
 
 	if (!msrObject->readMSR(COFVID_STATUS_REG, getMask(0, selectedNode)))
 	{
-		printf ("Interlagos::minVID - Unable to read MSR\n");
+		printf ("Kaveri::minVID - Unable to read MSR\n");
 		free (msrObject);
 		return false;
 	}
@@ -1152,7 +1144,7 @@ DWORD Interlagos::minVID ()
 }
 
 //maxVID is reported per-node, so selected core is always discarded
-DWORD Interlagos::maxVID()
+DWORD Kaveri::maxVID()
 {
 	MSRObject *msrObject;
 	DWORD maxVid;
@@ -1161,7 +1153,7 @@ DWORD Interlagos::maxVID()
 
 	if (!msrObject->readMSR(COFVID_STATUS_REG, getMask(0, selectedNode)))
 	{
-		printf("Interlagos::maxVID - Unable to read MSR\n");
+		printf("Kaveri::maxVID - Unable to read MSR\n");
 		free(msrObject);
 		return false;
 	}
@@ -1178,7 +1170,7 @@ DWORD Interlagos::maxVID()
 }
 
 //StartupPState is reported per-node. Selected core is discarded
-DWORD Interlagos::startupPState ()
+DWORD Kaveri::startupPState ()
 {
 	MSRObject *msrObject;
 	DWORD pstate;
@@ -1187,7 +1179,7 @@ DWORD Interlagos::startupPState ()
 
 	if (!msrObject->readMSR(COFVID_STATUS_REG, getMask(0, selectedNode)))
 	{
-		printf("Interlagos.cpp::startupPState unable to read MSR\n");
+		printf("Kaveri.cpp::startupPState unable to read MSR\n");
 		free(msrObject);
 		return false;
 	}
@@ -1199,7 +1191,7 @@ DWORD Interlagos::startupPState ()
 	return pstate;
 }
 
-DWORD Interlagos::maxCPUFrequency()
+DWORD Kaveri::maxCPUFrequency()
 {
 	MSRObject *msrObject;
 	DWORD maxCPUFid;
@@ -1208,7 +1200,7 @@ DWORD Interlagos::maxCPUFrequency()
 
 	if (!msrObject->readMSR(COFVID_STATUS_REG, getMask(0, selectedNode)))
 	{
-		printf("Interlagos.cpp::maxCPUFrequency unable to read MSR\n");
+		printf("Kaveri.cpp::maxCPUFrequency unable to read MSR\n");
 		free(msrObject);
 		return false;
 	}
@@ -1228,14 +1220,14 @@ DWORD Interlagos::maxCPUFrequency()
  * If boostlock (bit 31) is not enabled, then it can be modified
  */
 
-DWORD Interlagos::getNumBoostStates(void)
+DWORD Kaveri::getNumBoostStates(void)
 {	
 	PCIRegObject *boostControl = new PCIRegObject();
 	DWORD numBoostStates;
 	
 	if (!boostControl->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_LINK_CONTROL, 0x15C, getNodeMask()))
 	{
-		printf("Interlagos::getNumBoostStates unable to read boost control register\n");
+		printf("Kaveri::getNumBoostStates unable to read boost control register\n");
 		return false;
 	}
 	
@@ -1246,13 +1238,13 @@ DWORD Interlagos::getNumBoostStates(void)
 	return numBoostStates;
 }
 
-void Interlagos::setNumBoostStates(DWORD numBoostStates)
+void Kaveri::setNumBoostStates(DWORD numBoostStates)
 {
 	PCIRegObject *boostControl = new PCIRegObject();
 	
 	if (!boostControl->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_LINK_CONTROL, 0x15C, getNodeMask()))
 	{
-		printf("Interlagos::getNumBoostStates unable to read boost control register\n");
+		printf("Kaveri::getNumBoostStates unable to read boost control register\n");
 		return;
 	}
 	
@@ -1272,7 +1264,7 @@ void Interlagos::setNumBoostStates(DWORD numBoostStates)
 	
 	if (!boostControl->writePCIReg())
 	{
-		printf("Interlagos::setNumBoostStates unable to write PCI Reg\n");
+		printf("Kaveri::setNumBoostStates unable to write PCI Reg\n");
 		return;
 	}
 	
@@ -1289,14 +1281,14 @@ void Interlagos::setNumBoostStates(DWORD numBoostStates)
  * Specifies whether CPB is enabled or disabled
  */
 
-DWORD Interlagos::getBoost(void)
+DWORD Kaveri::getBoost(void)
 {
 	PCIRegObject *boostControl = new PCIRegObject();
 	DWORD boostSrc;
 	
 	if (!boostControl->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_LINK_CONTROL, 0x15C, getNodeMask()))
 	{
-		printf("Interlagos::getBoost unable to read boost control register\n");
+		printf("Kaveri::getBoost unable to read boost control register\n");
 		return -1;
 	}
 	
@@ -1312,13 +1304,13 @@ DWORD Interlagos::getBoost(void)
 		return -1;
 }
 
-void Interlagos::setBoost(bool boost)
+void Kaveri::setBoost(bool boost)
 {	
 	PCIRegObject *boostControl = new PCIRegObject();
 
 	if (!boostControl->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_LINK_CONTROL, 0x15C, getNodeMask()))
 	{
-		printf("Interlagos::enableBoost unable to read boost control register\n");
+		printf("Kaveri::enableBoost unable to read boost control register\n");
 		free(boostControl);
 		return;
 	}
@@ -1338,7 +1330,7 @@ void Interlagos::setBoost(bool boost)
 
 	if (!boostControl->writePCIReg())
 	{
-		printf("Interlagos::enableBoost unable to write PCI Reg\n");
+		printf("Kaveri::enableBoost unable to write PCI Reg\n");
 		free(boostControl);
 		return;
 	}
@@ -1351,7 +1343,7 @@ void Interlagos::setBoost(bool boost)
 	free(boostControl);
 }
 
-DWORD Interlagos::getTDP(void)
+DWORD Kaveri::getTDP(void)
 {
 	PCIRegObject *TDPReg = new PCIRegObject();
 	PCIRegObject *TDP2Watt = new PCIRegObject();
@@ -1360,13 +1352,13 @@ DWORD Interlagos::getTDP(void)
 	
 	if (!TDPReg->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_LINK_CONTROL, 0x1B8, getNodeMask()))
 	{
-		printf("Interlagos::getTDP unable to read boost control register\n");
+		printf("Kaveri::getTDP unable to read boost control register\n");
 		return -1;
 	}
 	
 	if (!TDP2Watt->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_5, 0xE8, getNodeMask()))
 	{
-		printf("Interlagos::getTDP unable to read TDP2Watt control register\n");
+		printf("Kaveri::getTDP unable to read TDP2Watt control register\n");
 		return -1;
 	}
 	
@@ -1382,7 +1374,7 @@ DWORD Interlagos::getTDP(void)
 }
 
 //DRAM Timings tweaking ----------------
-DWORD Interlagos::setDramTiming(DWORD device, /* 0 or 1 */
+DWORD Kaveri::setDramTiming(DWORD device, /* 0 or 1 */
 		DWORD Tcl, DWORD Trcd, DWORD Trp, DWORD Trtp, DWORD Tras, DWORD Trc,
 		DWORD Twr, DWORD Trrd, DWORD Tcwl, DWORD T_mode) {
 
@@ -1465,7 +1457,7 @@ DWORD Interlagos::setDramTiming(DWORD device, /* 0 or 1 */
 
 	if (!(regconfhigh && reg0 && reg1 && reg3 && reg10))
 	{
-		printf("Interlagos::getDRAMTiming - unable to read PCI register\n");
+		printf("Kaveri::getDRAMTiming - unable to read PCI register\n");
 		free(dramConfigurationHighRegister);
 		free(dramTiming0);
 		free(dramTiming1);
@@ -1550,7 +1542,7 @@ DWORD Interlagos::setDramTiming(DWORD device, /* 0 or 1 */
 
 
 //Temperature registers ------------------
-DWORD Interlagos::getTctlRegister (void)
+DWORD Kaveri::getTctlRegister (void)
 {
 	PCIRegObject *pciRegObject;
 	DWORD temp;
@@ -1559,7 +1551,7 @@ DWORD Interlagos::getTctlRegister (void)
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xa4, getNodeMask()))
 	{
-		printf("Interlagos.cpp::getTctlRegister - unable to read PCI register\n");
+		printf("Kaveri.cpp::getTctlRegister - unable to read PCI register\n");
 		free(pciRegObject);
 		return 0;
 	}
@@ -1578,7 +1570,7 @@ DWORD Interlagos::getTctlRegister (void)
 	return temp >> 3;
 }
 
-DWORD Interlagos::getTctlMaxDiff()
+DWORD Kaveri::getTctlMaxDiff()
 {
 	PCIRegObject *pciRegObject;
 	DWORD maxDiff;
@@ -1587,7 +1579,7 @@ DWORD Interlagos::getTctlMaxDiff()
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xa4, getNodeMask()))
 	{
-		printf("Interlagos.cpp::getTctlMaxDiff unable to read PCI register\n");
+		printf("Kaveri.cpp::getTctlMaxDiff unable to read PCI register\n");
 		free(pciRegObject);
 		return 0;
 	}
@@ -1607,7 +1599,7 @@ DWORD Interlagos::getTctlMaxDiff()
 }
 
 //Voltage Slamming time
-DWORD Interlagos::getSlamTime (void)
+DWORD Kaveri::getSlamTime (void)
 {
 	PCIRegObject *pciRegObject;
 	DWORD slamTime;
@@ -1616,7 +1608,7 @@ DWORD Interlagos::getSlamTime (void)
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xd4, getNodeMask()))
 	{
-		printf("Interlagos.cpp::getSlamTime unable to read PCI register\n");
+		printf("Kaveri.cpp::getSlamTime unable to read PCI register\n");
 		free(pciRegObject);
 		return 0;
 	}
@@ -1635,7 +1627,7 @@ DWORD Interlagos::getSlamTime (void)
 	return slamTime;
 }
 
-void Interlagos::setSlamTime (DWORD slmTime)
+void Kaveri::setSlamTime (DWORD slmTime)
 {
 	PCIRegObject *pciRegObject;
 
@@ -1649,7 +1641,7 @@ void Interlagos::setSlamTime (DWORD slmTime)
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xd4, getNodeMask()))
 	{
-		printf("Interlagos::setSlamTime -  unable to read PCI Register\n");
+		printf("Kaveri::setSlamTime -  unable to read PCI Register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -1666,7 +1658,7 @@ void Interlagos::setSlamTime (DWORD slmTime)
 
 	if (!pciRegObject->writePCIReg())
 	{
-		printf("Interlagos.cpp::setSlamTime - unable to write PCI register\n");
+		printf("Kaveri.cpp::setSlamTime - unable to write PCI register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -1706,7 +1698,7 @@ void K10Processor::setAltVidSlamTime (DWORD slmTime) {
 
 
 //Voltage Ramping time
-DWORD Interlagos::getStepUpRampTime (void)
+DWORD Kaveri::getStepUpRampTime (void)
 {
 	PCIRegObject *pciRegObject;
 	DWORD vsRampTime;
@@ -1715,7 +1707,7 @@ DWORD Interlagos::getStepUpRampTime (void)
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xd4, getNodeMask()))
 	{
-		printf("Interlagos.cpp::getStepUpRampTime unable to read PCI Register\n");
+		printf("Kaveri.cpp::getStepUpRampTime unable to read PCI Register\n");
 		free(pciRegObject);
 		return false;
 	}
@@ -1735,7 +1727,7 @@ DWORD Interlagos::getStepUpRampTime (void)
 	return vsRampTime;
 }
 
-DWORD Interlagos::getStepDownRampTime (void)
+DWORD Kaveri::getStepDownRampTime (void)
 {
 	PCIRegObject *pciRegObject;
 	DWORD vsRampTime;
@@ -1744,7 +1736,7 @@ DWORD Interlagos::getStepDownRampTime (void)
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xd4, getNodeMask()))
 	{
-		printf("Interlagos::getStepDownRampTime -  unable to read PCI Register\n");
+		printf("Kaveri::getStepDownRampTime -  unable to read PCI Register\n");
 		free(pciRegObject);
 		return false;
 	}
@@ -1764,7 +1756,7 @@ DWORD Interlagos::getStepDownRampTime (void)
 	return vsRampTime;
 }
 
-void Interlagos::setStepUpRampTime (DWORD rmpTime)
+void Kaveri::setStepUpRampTime (DWORD rmpTime)
 {
 	PCIRegObject *pciRegObject;
 
@@ -1772,7 +1764,7 @@ void Interlagos::setStepUpRampTime (DWORD rmpTime)
 
 		if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xd4, getNodeMask()))
 		{
-			printf("Interlagos::setStepUpRampTime unable to read PCI Register\n");
+			printf("Kaveri::setStepUpRampTime unable to read PCI Register\n");
 			free(pciRegObject);
 			return;
 		}
@@ -1789,7 +1781,7 @@ void Interlagos::setStepUpRampTime (DWORD rmpTime)
 
 		if (!pciRegObject->writePCIReg())
 		{
-			printf ("Interlagos::setStepUpRampTime - unable to write PCI register\n");
+			printf ("Kaveri::setStepUpRampTime - unable to write PCI register\n");
 			free (pciRegObject);
 			return;
 		}
@@ -1799,7 +1791,7 @@ void Interlagos::setStepUpRampTime (DWORD rmpTime)
 		return;
 }
 
-void Interlagos::setStepDownRampTime(DWORD rmpTime)
+void Kaveri::setStepDownRampTime(DWORD rmpTime)
 {
 	PCIRegObject *pciRegObject;
 
@@ -1813,7 +1805,7 @@ void Interlagos::setStepDownRampTime(DWORD rmpTime)
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xd4, getNodeMask()))
 	{
-		printf("Interlagos::setStepDownRampTime - unable to read PCI Register\n");
+		printf("Kaveri::setStepDownRampTime - unable to read PCI Register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -1830,7 +1822,7 @@ void Interlagos::setStepDownRampTime(DWORD rmpTime)
 
 	if (!pciRegObject->writePCIReg())
 	{
-		printf("Interlagos::setStepDownRampTime - unable to write PCI register\n");
+		printf("Kaveri::setStepDownRampTime - unable to write PCI register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -1842,7 +1834,7 @@ void Interlagos::setStepDownRampTime(DWORD rmpTime)
 
 
 // AltVID - HTC Thermal features
-bool Interlagos::HTCisCapable ()
+bool Kaveri::HTCisCapable ()
 {
 	PCIRegObject *pciRegObject;
 	DWORD isCapable;
@@ -1851,7 +1843,7 @@ bool Interlagos::HTCisCapable ()
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xe8, getNodeMask()))
 	{
-		printf("Interlagos::HTCisCapable - unable to read PCI register\n");
+		printf("Kaveri::HTCisCapable - unable to read PCI register\n");
 		free(pciRegObject);
 		return false;
 	}
@@ -1871,7 +1863,7 @@ bool Interlagos::HTCisCapable ()
 	return (bool) isCapable;
 }
 
-bool Interlagos::HTCisEnabled()
+bool Kaveri::HTCisEnabled()
 {
 	PCIRegObject *pciRegObject;
 	DWORD isEnabled;
@@ -1880,7 +1872,7 @@ bool Interlagos::HTCisEnabled()
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0x64, getNodeMask()))
 	{
-		printf("Interlagos::HTCisEnabled - unable to read PCI register\n");
+		printf("Kaveri::HTCisEnabled - unable to read PCI register\n");
 		free(pciRegObject);
 		return false;
 	}
@@ -1900,7 +1892,7 @@ bool Interlagos::HTCisEnabled()
 	return (bool) isEnabled;
 }
 
-bool Interlagos::HTCisActive()
+bool Kaveri::HTCisActive()
 {
 	PCIRegObject *pciRegObject;
 	DWORD isActive;
@@ -1909,7 +1901,7 @@ bool Interlagos::HTCisActive()
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0x64, getNodeMask()))
 	{
-		printf("Interlagos::HTCisActive - unable to read PCI register\n");
+		printf("Kaveri::HTCisActive - unable to read PCI register\n");
 		free(pciRegObject);
 		return false;
 	}
@@ -1929,7 +1921,7 @@ bool Interlagos::HTCisActive()
 	return (bool) isActive;
 }
 
-bool Interlagos::HTChasBeenActive()
+bool Kaveri::HTChasBeenActive()
 {
 	PCIRegObject *pciRegObject;
 	DWORD hasBeenActivated;
@@ -1938,7 +1930,7 @@ bool Interlagos::HTChasBeenActive()
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0x64, getNodeMask()))
 	{
-		printf("Interlagos::HTChasBeenActive - unable to read PCI register\n");
+		printf("Kaveri::HTChasBeenActive - unable to read PCI register\n");
 		free(pciRegObject);
 		return false;
 	}
@@ -1958,7 +1950,7 @@ bool Interlagos::HTChasBeenActive()
 	return (bool) hasBeenActivated;
 }
 
-DWORD Interlagos::HTCTempLimit()
+DWORD Kaveri::HTCTempLimit()
 {
 	PCIRegObject *pciRegObject;
 	DWORD tempLimit;
@@ -1967,7 +1959,7 @@ DWORD Interlagos::HTCTempLimit()
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0x64, getNodeMask()))
 	{
-		printf("Interlagos::HTCTempLimit - unable to read PCI register\n");
+		printf("Kaveri::HTCTempLimit - unable to read PCI register\n");
 		free(pciRegObject);
 		return false;
 	}
@@ -1987,7 +1979,7 @@ DWORD Interlagos::HTCTempLimit()
 	return tempLimit;
 }
 
-bool Interlagos::HTCSlewControl()
+bool Kaveri::HTCSlewControl()
 {
 	PCIRegObject *pciRegObject;
 	DWORD slewControl;
@@ -1996,7 +1988,7 @@ bool Interlagos::HTCSlewControl()
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0x64, getNodeMask()))
 	{
-		printf("Interlagos::HTCSlewControl - unable to read PCI register\n");
+		printf("Kaveri::HTCSlewControl - unable to read PCI register\n");
 		free(pciRegObject);
 		return false;
 	}
@@ -2016,7 +2008,7 @@ bool Interlagos::HTCSlewControl()
 	return (bool) slewControl;
 }
 
-DWORD Interlagos::HTCHystTemp()
+DWORD Kaveri::HTCHystTemp()
 {
 	PCIRegObject *pciRegObject;
 	DWORD hystTemp;
@@ -2025,7 +2017,7 @@ DWORD Interlagos::HTCHystTemp()
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0x64, getNodeMask()))
 	{
-		printf("Interlagos::HTCHystTemp - unable to read PCI register\n");
+		printf("Kaveri::HTCHystTemp - unable to read PCI register\n");
 		free(pciRegObject);
 		return false;
 	}
@@ -2045,7 +2037,7 @@ DWORD Interlagos::HTCHystTemp()
 	return hystTemp;
 }
 
-DWORD Interlagos::HTCPStateLimit()
+DWORD Kaveri::HTCPStateLimit()
 {
 	PCIRegObject *pciRegObject;
 	DWORD pStateLimit;
@@ -2054,7 +2046,7 @@ DWORD Interlagos::HTCPStateLimit()
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0x64, getNodeMask()))
 	{
-		printf("Interlagos::HTCPStateLimit - unable to read PCI register\n");
+		printf("Kaveri::HTCPStateLimit - unable to read PCI register\n");
 		free(pciRegObject);
 		return false;
 	}
@@ -2074,7 +2066,7 @@ DWORD Interlagos::HTCPStateLimit()
 	return pStateLimit;
 }
 
-bool Interlagos::HTCLocked()
+bool Kaveri::HTCLocked()
 {
 	PCIRegObject *pciRegObject;
 	DWORD htcLocked;
@@ -2083,7 +2075,7 @@ bool Interlagos::HTCLocked()
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0x64, getNodeMask()))
 	{
-		printf("Interlagos::HTCLocked - unable to read PCI register\n");
+		printf("Kaveri::HTCLocked - unable to read PCI register\n");
 		free(pciRegObject);
 		return false;
 	}
@@ -2103,7 +2095,7 @@ bool Interlagos::HTCLocked()
 	return (bool) htcLocked;
 }
 
-void Interlagos::HTCEnable()
+void Kaveri::HTCEnable()
 {
 	PCIRegObject *pciRegObject;
 
@@ -2111,7 +2103,7 @@ void Interlagos::HTCEnable()
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0x64, getNodeMask()))
 	{
-		printf("Interlagos::HTCEnable - unable to read PCI register\n");
+		printf("Kaveri::HTCEnable - unable to read PCI register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -2128,7 +2120,7 @@ void Interlagos::HTCEnable()
 
 	if (!pciRegObject->writePCIReg())
 	{
-		printf("Interlagos::HTCEnable - unable to write PCI register\n");
+		printf("Kaveri::HTCEnable - unable to write PCI register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -2138,7 +2130,7 @@ void Interlagos::HTCEnable()
 	return;
 }
 
-void Interlagos::HTCDisable()
+void Kaveri::HTCDisable()
 {
 	PCIRegObject *pciRegObject;
 
@@ -2146,7 +2138,7 @@ void Interlagos::HTCDisable()
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0x64, getNodeMask()))
 	{
-		printf("Interlagos::HTCDisable - unable to read PCI register\n");
+		printf("Kaveri::HTCDisable - unable to read PCI register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -2163,7 +2155,7 @@ void Interlagos::HTCDisable()
 
 	if (!pciRegObject->writePCIReg())
 	{
-		printf("Interlagos::HTCDisable - unable to write PCI register\n");
+		printf("Kaveri::HTCDisable - unable to write PCI register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -2173,7 +2165,7 @@ void Interlagos::HTCDisable()
 	return;
 }
 
-void Interlagos::HTCsetTempLimit (DWORD tempLimit)
+void Kaveri::HTCsetTempLimit (DWORD tempLimit)
 {
 	PCIRegObject *pciRegObject;
 
@@ -2187,7 +2179,7 @@ void Interlagos::HTCsetTempLimit (DWORD tempLimit)
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0x64, getNodeMask()))
 	{
-		printf("Interlagos::HTCsetTempLimit - unable to read PCI register\n");
+		printf("Kaveri::HTCsetTempLimit - unable to read PCI register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -2204,7 +2196,7 @@ void Interlagos::HTCsetTempLimit (DWORD tempLimit)
 
 	if (!pciRegObject->writePCIReg())
 	{
-		printf("Interlagos::HTCsetTempLimit - unable to write PCI register\n");
+		printf("Kaveri::HTCsetTempLimit - unable to write PCI register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -2215,7 +2207,7 @@ void Interlagos::HTCsetTempLimit (DWORD tempLimit)
 
 }
 
-void Interlagos::HTCsetHystLimit(DWORD hystLimit)
+void Kaveri::HTCsetHystLimit(DWORD hystLimit)
 {
 	PCIRegObject *pciRegObject;
 
@@ -2229,7 +2221,7 @@ void Interlagos::HTCsetHystLimit(DWORD hystLimit)
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0x64, getNodeMask()))
 	{
-		printf("Interlagos::HTCsetHystLimit - unable to read PCI register\n");
+		printf("Kaveri::HTCsetHystLimit - unable to read PCI register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -2246,7 +2238,7 @@ void Interlagos::HTCsetHystLimit(DWORD hystLimit)
 
 	if (!pciRegObject->writePCIReg())
 	{
-		printf("Interlagos::HTCsetHystLimit - unable to write PCI register\n");
+		printf("Kaveri::HTCsetHystLimit - unable to write PCI register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -2256,7 +2248,7 @@ void Interlagos::HTCsetHystLimit(DWORD hystLimit)
 	return;
 }
 
-DWORD Interlagos::getAltVID()
+DWORD Kaveri::getAltVID()
 {
 	PCIRegObject *pciRegObject;
 	DWORD altVid;
@@ -2265,7 +2257,7 @@ DWORD Interlagos::getAltVID()
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xdc, getNodeMask()))
 	{
-		printf("Interlagos.cpp::getAltVID - unable to read PCI register\n");
+		printf("Kaveri.cpp::getAltVID - unable to read PCI register\n");
 		free(pciRegObject);
 		return false;
 	}
@@ -2285,7 +2277,7 @@ DWORD Interlagos::getAltVID()
 	return altVid;
 }
 
-void Interlagos::setAltVid(DWORD altVid)
+void Kaveri::setAltVid(DWORD altVid)
 {
 	PCIRegObject *pciRegObject;
 
@@ -2299,7 +2291,7 @@ void Interlagos::setAltVid(DWORD altVid)
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xdc, getNodeMask()))
 	{
-		printf("Interlagos.cpp::setAltVID - unable to read PCI register\n");
+		printf("Kaveri.cpp::setAltVID - unable to read PCI register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -2316,7 +2308,7 @@ void Interlagos::setAltVid(DWORD altVid)
 
 	if (!pciRegObject->writePCIReg())
 	{
-		printf("Interlagos.cpp::setAltVID - unable to write to PCI register\n");
+		printf("Kaveri.cpp::setAltVID - unable to write to PCI register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -2330,7 +2322,7 @@ void Interlagos::setAltVid(DWORD altVid)
 
 //TODO: All hypertransport Link section must be tested and validated!!
 
-DWORD Interlagos::getHTLinkWidth(DWORD link, DWORD Sublink, DWORD *WidthIn, DWORD *WidthOut, bool *pfCoherent, bool *pfUnganged)
+DWORD Kaveri::getHTLinkWidth(DWORD link, DWORD Sublink, DWORD *WidthIn, DWORD *WidthOut, bool *pfCoherent, bool *pfUnganged)
 {
 	DWORD FUNC_TARGET;
 
@@ -2351,7 +2343,7 @@ DWORD Interlagos::getHTLinkWidth(DWORD link, DWORD Sublink, DWORD *WidthIn, DWOR
 	//Link Type Register is located at 0x98 + 0x20 * link
 	if (!linkTypeRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, FUNC_TARGET, 0x98 + (0x20 * link), getNodeMask()))
 	{
-		printf("Interlagos::getHTLinkWidth - unable to read linkType PCI Register\n");
+		printf("Kaveri::getHTLinkWidth - unable to read linkType PCI Register\n");
 		free(linkTypeRegObject);
 		return false;
 	}
@@ -2360,7 +2352,7 @@ DWORD Interlagos::getHTLinkWidth(DWORD link, DWORD Sublink, DWORD *WidthIn, DWOR
 	//Link Control Register is located at 0x84 + 0x20 * link
 	if (!linkControlRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, FUNC_TARGET, 0x84 + (0x20 * link), getNodeMask()))
 	{
-		printf("Interlagos::getHTLinkWidth - unable to read linkControl PCI Register\n");
+		printf("Kaveri::getHTLinkWidth - unable to read linkControl PCI Register\n");
 		free(linkTypeRegObject);
 		free(linkControlRegObject);
 		return false;
@@ -2370,7 +2362,7 @@ DWORD Interlagos::getHTLinkWidth(DWORD link, DWORD Sublink, DWORD *WidthIn, DWOR
 	//Link Control Extended Register is located at 0x170 + 0x04 * link
 	if (!linkExtControlRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, FUNC_TARGET, 0x170 + (0x04 * link), getNodeMask()))
 	{
-		printf("Interlagos::getHTLinkWidth - unable to read linkExtendedControl PCI Register\n");
+		printf("Kaveri::getHTLinkWidth - unable to read linkExtendedControl PCI Register\n");
 		free(linkTypeRegObject);
 		free(linkControlRegObject);
 		free(linkExtControlRegObject);
@@ -2457,7 +2449,7 @@ DWORD Interlagos::getHTLinkWidth(DWORD link, DWORD Sublink, DWORD *WidthIn, DWOR
 	return 0;
 }
 
-DWORD Interlagos::getHTLinkSpeed (DWORD link, DWORD Sublink)
+DWORD Kaveri::getHTLinkSpeed (DWORD link, DWORD Sublink)
 {
 	DWORD FUNC_TARGET;
 
@@ -2475,7 +2467,7 @@ DWORD Interlagos::getHTLinkSpeed (DWORD link, DWORD Sublink)
 
 	if (!linkRegisterRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE,FUNC_TARGET,linkFrequencyRegister,getNodeMask()))
 	{
-		printf ("Interlagos::getHTLinkSpeed - unable to read linkRegister PCI Register\n");
+		printf ("Kaveri::getHTLinkSpeed - unable to read linkRegister PCI Register\n");
 		free (linkRegisterRegObject);
 		return false;
 	}
@@ -2491,7 +2483,7 @@ DWORD Interlagos::getHTLinkSpeed (DWORD link, DWORD Sublink)
 
 		if (!linkExtRegisterRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, FUNC_TARGET, linkFrequencyExtensionRegister, getNodeMask()))
 		{
-			printf ("Interlagos::getHTLinkSpeed - unable to read linkExtensionRegister PCI Register\n");
+			printf ("Kaveri::getHTLinkSpeed - unable to read linkExtensionRegister PCI Register\n");
 			free(linkRegisterRegObject);
 			free(linkExtRegisterRegObject);
 			return false;
@@ -2515,7 +2507,7 @@ DWORD Interlagos::getHTLinkSpeed (DWORD link, DWORD Sublink)
 	return dwReturn;
 }
 
-void Interlagos::printRoute(DWORD route)
+void Kaveri::printRoute(DWORD route)
 {
 
 	if (route & 0x1)
@@ -2567,7 +2559,7 @@ void Interlagos::printRoute(DWORD route)
 }
 
 
-DWORD Interlagos::getHTLinkDistributionTarget(DWORD link, DWORD *DstLnk, DWORD *DstNode)
+DWORD Kaveri::getHTLinkDistributionTarget(DWORD link, DWORD *DstLnk, DWORD *DstNode)
 {
 	//Coherent Link Traffic Distribution Register:
 	PCIRegObject *cltdRegObject;
@@ -2582,7 +2574,7 @@ DWORD Interlagos::getHTLinkDistributionTarget(DWORD link, DWORD *DstLnk, DWORD *
 
 	if (!cltdRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_HT_CONFIG, 0x164, getNodeMask()))
 	{
-		printf("Interlagos::getHTLinkDistributionTarget - unable to read Coherent Link Traffic Distribution PCI Register\n");
+		printf("Kaveri::getHTLinkDistributionTarget - unable to read Coherent Link Traffic Distribution PCI Register\n");
 		free(cltdRegObject);
 		return 0;
 	}
@@ -2604,7 +2596,7 @@ DWORD Interlagos::getHTLinkDistributionTarget(DWORD link, DWORD *DstLnk, DWORD *
 		routingTableRegObject = new PCIRegObject();
 		if (!routingTableRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_HT_CONFIG, routingTableRegister, getNodeMask()))
 		{
-			printf("Interlagos::getHTLinkDistributionTarget - unable to read Routing Table PCI Register\n");
+			printf("Kaveri::getHTLinkDistributionTarget - unable to read Routing Table PCI Register\n");
 			free(cltdRegObject);
 			free(routingTableRegObject);
 			return 0;
@@ -2641,7 +2633,7 @@ DWORD Interlagos::getHTLinkDistributionTarget(DWORD link, DWORD *DstLnk, DWORD *
 	return 0;
 }
 
-void Interlagos::setHTLinkSpeed (DWORD linkRegister, DWORD reg)
+void Kaveri::setHTLinkSpeed (DWORD linkRegister, DWORD reg)
 {
 	PCIRegObject *pciRegObject;
 
@@ -2666,7 +2658,7 @@ void Interlagos::setHTLinkSpeed (DWORD linkRegister, DWORD reg)
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_HT_CONFIG, linkRegister, getNodeMask()))
 	{
-		printf ("Interlagos.cpp::setHTLinkSpeed - unable to read PCI register\n");
+		printf ("Kaveri.cpp::setHTLinkSpeed - unable to read PCI register\n");
 		free (pciRegObject);
 		return;
 	}
@@ -2675,7 +2667,7 @@ void Interlagos::setHTLinkSpeed (DWORD linkRegister, DWORD reg)
 
 	if (!pciRegObject->writePCIReg())
 	{
-		printf ("Interlagos.cpp::setHTLinkSpeed - unable to write PCI register\n");
+		printf ("Kaveri.cpp::setHTLinkSpeed - unable to write PCI register\n");
 		free (pciRegObject);
 		return;
 	}
@@ -2686,7 +2678,7 @@ void Interlagos::setHTLinkSpeed (DWORD linkRegister, DWORD reg)
 }
 
 // CPU Usage module
-bool Interlagos::getPsiEnabled()
+bool Kaveri::getPsiEnabled()
 {
 	PCIRegObject *pciRegObject;
 	DWORD psiEnabled;
@@ -2695,7 +2687,7 @@ bool Interlagos::getPsiEnabled()
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xa0, getNodeMask()))
 	{
-		printf("Interlagos.cpp::getPsiEnabled - unable to read PCI register\n");
+		printf("Kaveri.cpp::getPsiEnabled - unable to read PCI register\n");
 		free(pciRegObject);
 		return false;
 	}
@@ -2715,7 +2707,7 @@ bool Interlagos::getPsiEnabled()
 	return (bool) psiEnabled;
 }
 
-DWORD Interlagos::getPsiThreshold()
+DWORD Kaveri::getPsiThreshold()
 {
 	PCIRegObject *pciRegObject;
 	DWORD psiThreshold;
@@ -2724,7 +2716,7 @@ DWORD Interlagos::getPsiThreshold()
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xa0, getNodeMask()))
 	{
-		printf("Interlagos.cpp::getPsiThreshold - unable to read PCI register\n");
+		printf("Kaveri.cpp::getPsiThreshold - unable to read PCI register\n");
 		free(pciRegObject);
 		return false;
 	}
@@ -2744,7 +2736,7 @@ DWORD Interlagos::getPsiThreshold()
 	return psiThreshold;
 }
 
-void Interlagos::setPsiEnabled (bool toggle)
+void Kaveri::setPsiEnabled (bool toggle)
 {
 	PCIRegObject *pciRegObject;
 
@@ -2752,7 +2744,7 @@ void Interlagos::setPsiEnabled (bool toggle)
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xa0, getNodeMask()))
 	{
-		printf("Interlagos.cpp::setPsiEnabled - unable to read PCI register\n");
+		printf("Kaveri.cpp::setPsiEnabled - unable to read PCI register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -2769,7 +2761,7 @@ void Interlagos::setPsiEnabled (bool toggle)
 
 	if (!pciRegObject->writePCIReg())
 	{
-		printf ("Interlagos.cpp::setPsiEnabled - unable to write PCI register\n");
+		printf ("Kaveri.cpp::setPsiEnabled - unable to write PCI register\n");
 		free (pciRegObject);
 		return;
 	}
@@ -2779,7 +2771,7 @@ void Interlagos::setPsiEnabled (bool toggle)
 	return;
 }
 
-void Interlagos::setPsiThreshold (DWORD threshold)
+void Kaveri::setPsiThreshold (DWORD threshold)
 {
 	PCIRegObject *pciRegObject;
 
@@ -2794,7 +2786,7 @@ void Interlagos::setPsiThreshold (DWORD threshold)
 
 	if (!pciRegObject->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_MISC_CONTROL_3, 0xa0, getNodeMask()))
 	{
-		printf("Interlagos.cpp::setPsiThreshold - unable to read PCI register\n");
+		printf("Kaveri.cpp::setPsiThreshold - unable to read PCI register\n");
 		free(pciRegObject);
 		return;
 	}
@@ -2811,7 +2803,7 @@ void Interlagos::setPsiThreshold (DWORD threshold)
 
 	if (!pciRegObject->writePCIReg())
 	{
-		printf ("Interlagos.cpp::setPsiThreshold - unable to write PCI register\n");
+		printf ("Kaveri.cpp::setPsiThreshold - unable to write PCI register\n");
 		free (pciRegObject);
 		return;
 	}
@@ -2822,7 +2814,7 @@ void Interlagos::setPsiThreshold (DWORD threshold)
 }
 
 // Various settings
-bool Interlagos::getC1EStatus()
+bool Kaveri::getC1EStatus()
 {
 // 	MSRObject *msrObject;
 // 	DWORD c1eBit;
@@ -2831,7 +2823,7 @@ bool Interlagos::getC1EStatus()
 // 
 // 	if (!msrObject->readMSR(CMPHALT_REG, getMask()))
 // 	{
-// 		printf ("Interlagos.cpp::getC1EStatus - unable to read MSR\n");
+// 		printf ("Kaveri.cpp::getC1EStatus - unable to read MSR\n");
 // 		free (msrObject);
 // 		return false;
 // 	}
@@ -2852,7 +2844,7 @@ bool Interlagos::getC1EStatus()
 	return false;
 }
 
-void Interlagos::setC1EStatus (bool toggle)
+void Kaveri::setC1EStatus (bool toggle)
 {
 // 	MSRObject *msrObject;
 // 
@@ -2860,7 +2852,7 @@ void Interlagos::setC1EStatus (bool toggle)
 // 
 // 	if (!msrObject->readMSR(CMPHALT_REG, getMask()))
 // 	{
-// 		printf ("Interlagos.cpp::setC1EStatus - unable to read MSR\n");
+// 		printf ("Kaveri.cpp::setC1EStatus - unable to read MSR\n");
 // 		free (msrObject);
 // 		return;
 // 	}
@@ -2870,7 +2862,7 @@ void Interlagos::setC1EStatus (bool toggle)
 // 	//C1E bit is stored in bit 28
 // 	if (!msrObject->writeMSR())
 // 	{
-// 		printf ("Interlagos.cpp::setC1EStatus - unable to write MSR\n");
+// 		printf ("Kaveri.cpp::setC1EStatus - unable to write MSR\n");
 // 		free (msrObject);
 // 		return;
 // 	}
@@ -2892,16 +2884,16 @@ void Interlagos::setC1EStatus (bool toggle)
 /*
  * Will show some informations about performance counter slots
  */
-void Interlagos::perfCounterGetInfo()
+void Kaveri::perfCounterGetInfo()
 {
-	Interlagos::K10PerformanceCounters::perfCounterGetInfo(this);
+	Kaveri::K10PerformanceCounters::perfCounterGetInfo(this);
 }
 
 /*
  * perfCounterGetValue will retrieve and show the performance counter value for all the selected nodes/processors
  *
  */
-void Interlagos::perfCounterGetValue (unsigned int perfCounter)
+void Kaveri::perfCounterGetValue (unsigned int perfCounter)
 {
 	PerformanceCounter *performanceCounter;
 
@@ -2917,23 +2909,23 @@ void Interlagos::perfCounterGetValue (unsigned int perfCounter)
 	printf ("Performance counter value: (decimal)%ld (hex)%lx\n", performanceCounter->getCounter(0), performanceCounter->getCounter(0));
 }
 
-void Interlagos::perfMonitorCPUUsage()
+void Kaveri::perfMonitorCPUUsage()
 {
-	Interlagos::K10PerformanceCounters::perfMonitorCPUUsage(this);
+	Kaveri::K10PerformanceCounters::perfMonitorCPUUsage(this);
 }
 
-void Interlagos::perfMonitorFPUUsage()
+void Kaveri::perfMonitorFPUUsage()
 {
-	Interlagos::K10PerformanceCounters::perfMonitorFPUUsage(this);
+	Kaveri::K10PerformanceCounters::perfMonitorFPUUsage(this);
 }
 
-void Interlagos::perfMonitorDCMA()
+void Kaveri::perfMonitorDCMA()
 {
-	Interlagos::K10PerformanceCounters::perfMonitorDCMA(this);
+	Kaveri::K10PerformanceCounters::perfMonitorDCMA(this);
 }
 
 
-void Interlagos::getCurrentStatus (struct procStatus *pStatus, DWORD core)
+void Kaveri::getCurrentStatus (struct procStatus *pStatus, DWORD core)
 {
 	DWORD eaxMsr, edxMsr;
 	
@@ -2946,7 +2938,7 @@ void Interlagos::getCurrentStatus (struct procStatus *pStatus, DWORD core)
 	return;
 }
 
-void Interlagos::checkMode()
+void Kaveri::checkMode()
 {
 	DWORD a, b, c, i, j, k, pstate, vid, fid, did;
 	DWORD eaxMsr, edxMsr;
@@ -3070,21 +3062,21 @@ void Interlagos::checkMode()
 /***************** PRIVATE METHODS ********************/
 
 
-bool Interlagos::setDramController(DWORD device)
+bool Kaveri::setDramController(DWORD device)
 {
 	PCIRegObject *dctConfigurationSelect;
 	
 	dctConfigurationSelect = new PCIRegObject();
 
 	if (!dctConfigurationSelect->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_ADDRESS_MAP, 0x10C, getNodeMask())) {
-		fprintf(stderr, "Interlagos::setDramController -- readPCIReg failed\n");
+		fprintf(stderr, "Kaveri::setDramController -- readPCIReg failed\n");
 		delete dctConfigurationSelect;
 		return false;
 	}
 	dctConfigurationSelect->setBits(0, 1, device);
 	dctConfigurationSelect->setBits(4, 2, 0); /* NB P-state 0 */
 	if (!dctConfigurationSelect->writePCIReg()) {
-		fprintf(stderr, "Interlagos::setDramController -- writePCIReg failed\n");
+		fprintf(stderr, "Kaveri::setDramController -- writePCIReg failed\n");
 		delete dctConfigurationSelect;
 		return false;
 	}
@@ -3092,7 +3084,7 @@ bool Interlagos::setDramController(DWORD device)
 	return true;
 }
 
-bool Interlagos::getDramValid (DWORD device)
+bool Kaveri::getDramValid (DWORD device)
 {
 	PCIRegObject *dramConfigurationHighRegister;
 	DWORD ret;
@@ -3105,7 +3097,7 @@ bool Interlagos::getDramValid (DWORD device)
 
 	if (!dramConfigurationHighRegister->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_DRAM_CONTROLLER, 0x94, getNodeMask()))
 	{
-		printf("Interlagos::getDramValid - unable to read PCI registers\n");
+		printf("Kaveri::getDramValid - unable to read PCI registers\n");
 		delete dramConfigurationHighRegister;
 		return false;
 	}
@@ -3125,7 +3117,7 @@ bool Interlagos::getDramValid (DWORD device)
  * 1Ah = 2133
  * 1Eh = 2400
  */
-int Interlagos::getDramFrequency (DWORD device, DWORD *T_mode)
+int Kaveri::getDramFrequency (DWORD device, DWORD *T_mode)
 {
 	PCIRegObject *dramConfigurationHighRegister;
 	DWORD regValue;
@@ -3138,7 +3130,7 @@ int Interlagos::getDramFrequency (DWORD device, DWORD *T_mode)
 
 	if (!dramConfigurationHighRegister->readPCIReg(PCI_DEV_NORTHBRIDGE, PCI_FUNC_DRAM_CONTROLLER, 0x94, getNodeMask()))
 	{
-		printf("Interlagos::getDRAMFrequency - unable to read PCI registers\n");
+		printf("Kaveri::getDRAMFrequency - unable to read PCI registers\n");
 		delete dramConfigurationHighRegister;
 		return 0;
 	}
@@ -3178,7 +3170,7 @@ int Interlagos::getDramFrequency (DWORD device, DWORD *T_mode)
 	}
 }
 
-void Interlagos::getDramTiming(DWORD device, /* 0 or 1   DCT0 or DCT1 */
+void Kaveri::getDramTiming(DWORD device, /* 0 or 1   DCT0 or DCT1 */
 		DWORD *Tcl, DWORD *Trcd, DWORD *Trp, DWORD *Trtp, DWORD *Tras,
 		DWORD *Trc, DWORD *Twr, DWORD *Trrd, DWORD *Tcwl, DWORD *Tfaw,
 		DWORD *TrwtWB, DWORD *TrwtTO, DWORD *Twtr, DWORD *Twrrd, DWORD *Twrwrsdsc,
@@ -3219,7 +3211,7 @@ void Interlagos::getDramTiming(DWORD device, /* 0 or 1   DCT0 or DCT1 */
 
 	if (!(reghigh && reg0 && reg1 && reg2 && reg3 && reg4 && reg5 && reg6 && reg10 && dramnbpstate))
 	{
-		printf("Interlagos::getDRAMTiming - unable to read PCI register\n");
+		printf("Kaveri::getDRAMTiming - unable to read PCI register\n");
 		free(dramTimingHigh);
 		free(dramTiming0);
 		free(dramTiming1);
@@ -3283,7 +3275,7 @@ void Interlagos::getDramTiming(DWORD device, /* 0 or 1   DCT0 or DCT1 */
 /************** PUBLIC SHOW METHODS ******************/
 
 
-void Interlagos::showHTLink()
+void Kaveri::showHTLink()
 {
 	int nodes = getProcessorNodes();
 	int i;
@@ -3355,7 +3347,7 @@ void Interlagos::showHTLink()
 	}
 }
 
-void Interlagos::showHTC()
+void Kaveri::showHTC()
 {
 	int i;
 	int nodes = getProcessorNodes();
@@ -3412,7 +3404,7 @@ void Interlagos::showHTC()
 	}
 }
 
-void Interlagos::showDramTimings()
+void Kaveri::showDramTimings()
 {
 	int nodes = getProcessorNodes();
 	int node_index;

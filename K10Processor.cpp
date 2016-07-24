@@ -275,7 +275,7 @@ float K10Processor::convertVIDtoVcore(DWORD curVid) {
 	 Serial VID Interface is simple to calculate.
 	 To obtain vcore from VID you need to do:
 
-	 vcore = 1,55 – (VID * 0.0125)
+	 vcore = 1,55 ? (VID * 0.0125)
 
 	 The inverse formula to obtain VID from vcore is:
 
@@ -1077,7 +1077,7 @@ void K10Processor::setNBFid(DWORD fid) {
 	 FID may or may not be reflected in this field, based on the state of NbFidEn. The NB FID may be
 	 updated to the value of this field through a warm or cold reset if NbFidEn=1. If that has occurred, then
 	 the NB COF is specified by:
-	 • NB COF = 200 MHz * (F3xD4[NbFid] + 4h) / (2^MSRC001_00[68:64][NbDid]).
+	 ? NB COF = 200 MHz * (F3xD4[NbFid] + 4h) / (2^MSRC001_00[68:64][NbDid]).
 	 This field must be programmed to the requirements specified in MSRC001_0071[MaxNbFid] and
 	 must be less than or equal to 1Bh, otherwise undefined behavior results. This field must be
 	 programmed to the same value for all nodes in the coherent fabric as specified by 2.4.2.9 [BIOS
@@ -2886,13 +2886,17 @@ void K10Processor::checkMode () {
 	DWORD a, b, c, i, j, k, pstate, vid, fid, did;
 	DWORD eaxMsr, edxMsr;
 	DWORD timestamp;
-	DWORD states[processorNodes][processorCores][getPowerStates()];
-	DWORD savedstates[processorNodes][processorCores][getPowerStates()];
+	DWORD *states		= new DWORD[processorNodes * processorCores * getPowerStates()];
+	DWORD *savedstates	= new DWORD[processorNodes * processorCores * getPowerStates()];
 	DWORD minTemp, maxTemp, temp, savedMinTemp, savedMaxTemp;
 	DWORD oTimeStamp, iTimeStamp;
 	float curVcore;
 	DWORD maxPState;
+	DWORD *hoge = new DWORD[getPowerStates()];
 
+	#define STATES( a, b, c )		states[(( a ) * processorCores + ( b )) * getPowerStates() + ( c )]
+	#define SAVEDSTATES( a, b, c )	savedstates[(( a ) * processorCores + ( b )) * getPowerStates() + ( c )]
+	
 	maxPState=getMaximumPState().getPState();
 
 	for (i = 0; i < processorNodes; i++)
@@ -2901,8 +2905,8 @@ void K10Processor::checkMode () {
 		{
 			for (k = 0; k < getPowerStates(); k++)
 			{
-				states[i][j][k] = 0;
-				savedstates[i][j][k] = 0;
+				STATES( i, j, k ) = 0;
+				SAVEDSTATES( i, j, k ) = 0;
 			}
 		}
 	}
@@ -2932,7 +2936,7 @@ void K10Processor::checkMode () {
 				fid = eaxMsr & 0x3f;
 				did = (eaxMsr >> 6) & 0x7;
 
-				states[i][j][pstate]++;
+				STATES( i, j, pstate )++;
 
 				printf ("c%d:ps%d - ", j, pstate);
 			}
@@ -2954,8 +2958,8 @@ void K10Processor::checkMode () {
 				{
 					for (c = 0; c < getPowerStates(); c++)
 					{
-						savedstates[a][b][c] = states[a][b][c];
-						states[a][b][c] = 0;
+						SAVEDSTATES( a, b, c ) = STATES( a, b, c );
+						STATES( a, b, c ) = 0;
 					}
 				}
 			}
@@ -2980,7 +2984,7 @@ void K10Processor::checkMode () {
 					printf(" C%d:", b);
 					for (c = 0; c < getPowerStates(); c++)
 					{
-						printf("%6d", savedstates[a][b][c]);
+						printf("%6d", SAVEDSTATES( a, b, c ));
 					}
 				}
 			}
@@ -2992,6 +2996,8 @@ void K10Processor::checkMode () {
 		Sleep (50);
 	}
 
+	delete [] states;
+	delete [] savedstates;
 	return;
 }
 

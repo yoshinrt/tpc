@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <unistd.h>
+#include <io.h>
 #include <stdlib.h>
 #include <inttypes.h>
 #include <sys/types.h>
@@ -11,6 +11,32 @@
 #define DWORD uint32_t
 #define TRUE true
 #define FALSE false
+
+size_t
+pread(int fd, void *buf, size_t count, off_t offset)
+{
+	size_t retval;
+	off_t saved_pos = lseek(fd, 0, SEEK_CUR);
+
+	lseek(fd, offset, SEEK_SET);
+	retval = read(fd, buf, count);
+	lseek(fd, saved_pos, SEEK_SET);
+
+	return retval;
+}
+
+size_t
+pwrite(int fd, void *buf, size_t count, off_t offset)
+{
+	size_t retval;
+	off_t saved_pos = lseek(fd, 0, SEEK_CUR);
+
+	lseek(fd, offset, SEEK_SET);
+	retval = write(fd, buf, count);
+	lseek(fd, saved_pos, SEEK_SET);
+
+	return retval;
+}
 
 bool Cpuid (DWORD fn, DWORD *eax, DWORD *ebx, DWORD *ecx, DWORD *edx) {
 
@@ -289,6 +315,7 @@ bool Wrmsr (DWORD msr,DWORD eax,DWORD ebx) {
 	return WrmsrPx (msr, eax, ebx, 0x1);
 }
 
+/*
 void Sleep (DWORD ms) {
 	usleep (ms*1000);
 	return;
@@ -309,3 +336,4 @@ int GetTickCount ()
 	tp.tv_sec += tp.tv_nsec;
 	return tp.tv_sec;
 }	
+*/
