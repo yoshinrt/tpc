@@ -18,7 +18,7 @@
 #include "PCIRegObject.h"
 #include "MSRObject.h"
 #include "PerformanceCounter.h"
-//#include "winring.h"
+#include "winring.h"
 
 #include "sysdep.h"
 

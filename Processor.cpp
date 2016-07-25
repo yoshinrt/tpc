@@ -2,8 +2,8 @@
 #include <stdlib.h>
 
 #ifdef _WIN32
-	#define uint64_t unsigned long long int
 	#include <windows.h>
+	#include <stdint.h>
 	#include "OlsApi.h"
 #endif
 

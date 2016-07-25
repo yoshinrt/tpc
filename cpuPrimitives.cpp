@@ -7,8 +7,7 @@
 	#include <unistd.h>
 #endif
 #include <stdlib.h>
-#include <inttypes.h>
-#include <sys/types.h>
+#include <stdint.h>
 #include "cpuPrimitives.h"
 #include <time.h>
 
@@ -36,10 +35,10 @@ size_t pwrite(int fd, void *buf, size_t count, off_t offset){
 }
 #endif
 
-bool Cpuid (DWORD fn, DWORD *eax, DWORD *ebx, DWORD *ecx, DWORD *edx) {
+bool Cpuid (uint32_t fn, uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx) {
 
 	char cpuid_filename[128];
-	DWORD data[4];
+	uint32_t data[4];
 	int fd;
 
 	sprintf(cpuid_filename, "/dev/cpu/0/cpuid");
@@ -81,12 +80,12 @@ bool Cpuid (DWORD fn, DWORD *eax, DWORD *ebx, DWORD *ecx, DWORD *edx) {
 	return true;
 }
 
-bool ReadPciConfigDwordEx (DWORD devfunc, DWORD reg, DWORD *res)
+bool ReadPciConfigDwordEx (uint32_t devfunc, uint32_t reg, uint32_t *res)
 {
 	char pcidev_filename[128];
 	int fd;
-	DWORD data;
-	DWORD bus, device, function;
+	uint32_t data;
+	uint32_t bus, device, function;
 
 	bus=(devfunc >> 8) & 0xff;
 	device=(devfunc >> 3) & 0x1f;
@@ -128,12 +127,12 @@ bool ReadPciConfigDwordEx (DWORD devfunc, DWORD reg, DWORD *res)
 	return true;
 }
 
-bool WritePciConfigDwordEx (DWORD devfunc, DWORD reg, DWORD res)
+bool WritePciConfigDwordEx (uint32_t devfunc, uint32_t reg, uint32_t res)
 {
 	char pcidev_filename[128];
 	int fd;
-	DWORD data;
-	DWORD bus, device, function;
+	uint32_t data;
+	uint32_t bus, device, function;
 	
 	bus=(devfunc >> 8) & 0xff;
 	device=(devfunc >> 3) & 0x1f;
@@ -175,12 +174,12 @@ bool WritePciConfigDwordEx (DWORD devfunc, DWORD reg, DWORD res)
 	return true;
 }
 
-bool RdmsrPx (DWORD msr,DWORD *eax,DWORD *ebx,PROCESSORMASK processorMask)
+bool RdmsrPx (uint32_t msr,uint32_t *eax,uint32_t *ebx,PROCESSORMASK processorMask)
 {
 	char msr_filename[128];
-	DWORD data[2];
+	uint32_t data[2];
 	int fd;
-	DWORD processor=0;
+	uint32_t processor=0;
 	bool isValidProcessor;
 
 	while (processor<MAX_CORES)
@@ -230,15 +229,15 @@ bool RdmsrPx (DWORD msr,DWORD *eax,DWORD *ebx,PROCESSORMASK processorMask)
 	return true;
 }
 
-bool Rdmsr (DWORD msr,DWORD *eax,DWORD *ebx) {
+bool Rdmsr (uint32_t msr,uint32_t *eax,uint32_t *ebx) {
 	return RdmsrPx (msr, eax, ebx, 0x1);
 }
 
-bool WrmsrPx (DWORD msr,DWORD eax,DWORD ebx,PROCESSORMASK processorMask) {
+bool WrmsrPx (uint32_t msr,uint32_t eax,uint32_t ebx,PROCESSORMASK processorMask) {
 	char msr_filename[128];
-	DWORD data[2];
+	uint32_t data[2];
 	int fd;
-	DWORD processor=0;
+	uint32_t processor=0;
 	bool isValidProcessor;
 
 // 	printf ("Mask: %x\n", processorMask);
@@ -309,12 +308,12 @@ bool WrmsrPx (DWORD msr,DWORD eax,DWORD ebx,PROCESSORMASK processorMask) {
 	return true;
 }
 
-bool Wrmsr (DWORD msr,DWORD eax,DWORD ebx) {
+bool Wrmsr (uint32_t msr,uint32_t eax,uint32_t ebx) {
 	return WrmsrPx (msr, eax, ebx, 0x1);
 }
 
 #ifndef _WIN32
-void Sleep (DWORD ms) {
+void Sleep (uint32_t ms) {
 	usleep (ms*1000);
 	return;
 }

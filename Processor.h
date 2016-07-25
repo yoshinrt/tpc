@@ -6,15 +6,12 @@
 
 #ifdef _WIN32
 
-#ifndef uint64_t
-#define uint64_t long long unsigned int
-#endif
-
 #include <windows.h>
 #include "OlsApi.h"
 #include "OlsDef.h"
 #include "MSVC_Round.h"
 #include <tchar.h>
+#include <stdint.h>
 #endif
 
 #ifdef __linux
