@@ -280,21 +280,14 @@ DWORD Kaveri::getVID (PState ps)
 //minVID is reported per-node, so selected core is always discarded
 DWORD Kaveri::minVID ()
 {
-	MSRObject *msrObject;
 	DWORD minVid;
 
-	msrObject = new MSRObject;
-
-	if (!msrObject->readMSR(COFVID_STATUS_REG, getMask(0, selectedNode)))
-	{
+	if (!ReadPCI( 0x18, 0x5, 0x17C, minVid )){
 		printf ("Kaveri::minVID - Unable to read MSR\n");
-		free (msrObject);
 		return false;
 	}
 	
-	minVid=msrObject->getBits(0, 42, 7);
-
-	free (msrObject);
+	minVid = GetBits( minVid, 10, 8 );
 
 	//If minVid==0, then there's no minimum vid.
 	//Since the register is 7-bit wide, then 127 is
@@ -311,7 +304,7 @@ DWORD Kaveri::minVID ()
 	{
 		//Serial VID mode, allows minimum vcore VID up to 0x7b
 		if (minVid==0)
-			return 0x7b;
+			return 0xFF;
 		else
 			return minVid;
 	}
@@ -320,21 +313,14 @@ DWORD Kaveri::minVID ()
 //maxVID is reported per-node, so selected core is always discarded
 DWORD Kaveri::maxVID()
 {
-	MSRObject *msrObject;
 	DWORD maxVid;
-
-	msrObject = new MSRObject;
-
-	if (!msrObject->readMSR(COFVID_STATUS_REG, getMask(0, selectedNode)))
-	{
+	
+	if (!ReadPCI( 0x18, 0x5, 0x17C, maxVid )){
 		printf("Kaveri::maxVID - Unable to read MSR\n");
-		free(msrObject);
 		return false;
 	}
 	
-	maxVid = msrObject->getBits(0, 35, 7);
-	
-	free(msrObject);
+	maxVid = GetBits( maxVid, 0, 8 );
 	
 	//If maxVid==0, then there's no maximum set in hardware
 	if (maxVid == 0)
