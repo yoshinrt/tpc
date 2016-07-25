@@ -19,6 +19,8 @@ void Processor::K10PerformanceCounters::perfMonitorCPUUsage(class Processor *p)
 {
 	PerformanceCounter *perfCounter;
 	MSRObject *tscCounter; //We need the timestamp counter too to determine the cpu usage in percentage
+	MSRObject msrMPREF;
+	MSRObject msrAPREF;
 
 	DWORD cpuIndex, nodeId, coreId;
 	PROCESSORMASK cpuMask;
@@ -30,6 +32,8 @@ void Processor::K10PerformanceCounters::perfMonitorCPUUsage(class Processor *p)
 	// and previous Time Stamp counters. We need these to obtain instantaneous CPU usage information
 	uint64_t *prevPerfCounters;
 	uint64_t *prevTSCCounters;
+	uint64_t *prevMPREF;
+	uint64_t *prevAPREF;
 
 	try
 	{
@@ -43,6 +47,8 @@ void Processor::K10PerformanceCounters::perfMonitorCPUUsage(class Processor *p)
 		// Allocating space for previous values of counters.
 		prevPerfCounters = (uint64_t *) calloc(p->getProcessorCores() * p->getProcessorNodes(), sizeof(uint64_t));
 		prevTSCCounters = (uint64_t *) calloc(p->getProcessorCores() * p->getProcessorNodes(), sizeof(uint64_t));
+		prevMPREF = (uint64_t *) calloc(p->getProcessorCores() * p->getProcessorNodes(), sizeof(uint64_t));
+		prevAPREF = (uint64_t *) calloc(p->getProcessorCores() * p->getProcessorNodes(), sizeof(uint64_t));
 
 		// MSR Object to retrieve the time stamp counter for all the nodes and all the processors
 		tscCounter = new MSRObject();
@@ -103,6 +109,12 @@ void Processor::K10PerformanceCounters::perfMonitorCPUUsage(class Processor *p)
 			return;
 		}
 
+		if (!msrMPREF.readMSR(MPREF_REG, cpuMask))
+			throw "unable to retrieve MPREF";
+
+		if (!msrAPREF.readMSR(APREF_REG, cpuMask))
+			throw "unable to retrieve APREF";
+
 		cpuIndex = 0;
 		for (nodeId = 0; nodeId < p->getProcessorNodes(); nodeId++)
 		{
@@ -110,6 +122,8 @@ void Processor::K10PerformanceCounters::perfMonitorCPUUsage(class Processor *p)
 			{
 				prevPerfCounters[cpuIndex] = perfCounter->getCounter(cpuIndex);
 				prevTSCCounters[cpuIndex] = tscCounter->getBits(cpuIndex, 0, 64);
+				prevMPREF[cpuIndex] = msrMPREF.getBits(cpuIndex, 0, 64);
+				prevAPREF[cpuIndex] = msrAPREF.getBits(cpuIndex, 0, 64);
 				cpuIndex++;
 			}
 		}
@@ -131,6 +145,12 @@ void Processor::K10PerformanceCounters::perfMonitorCPUUsage(class Processor *p)
 				return;
 			}
 
+			if (!msrMPREF.readMSR(MPREF_REG, cpuMask))
+				throw "unable to retrieve MPREF";
+	
+			if (!msrAPREF.readMSR(APREF_REG, cpuMask))
+				throw "unable to retrieve APREF";
+
 			cpuIndex = 0;
 
 			for (nodeId = 0; nodeId < p->getProcessorNodes(); nodeId++)
@@ -139,18 +159,26 @@ void Processor::K10PerformanceCounters::perfMonitorCPUUsage(class Processor *p)
 
 				for (coreId = 0x0; coreId < p->getProcessorCores(); coreId++)
 				{
- 					usage = ((perfCounter->getCounter(cpuIndex)) - prevPerfCounters[cpuIndex]) * 100;
- 					usage /= tscCounter->getBits(cpuIndex, 0, 64) - prevTSCCounters[cpuIndex];
- 
- 					printf(" c%d:%d%%", coreId, (unsigned int) usage);
- 
+					/*
+					usage =
+						(perfCounter->getCounter(cpuIndex) - prevPerfCounters[cpuIndex]) * 100 *
+						(msrMPREF.getBits(cpuIndex, 0, 64) - prevMPREF[cpuIndex] ) /
+						(msrAPREF.getBits(cpuIndex, 0, 64) - prevAPREF[cpuIndex] ) /
+						(tscCounter->getBits(cpuIndex, 0, 64) - prevTSCCounters[cpuIndex]);
+*/
+ 					//printf(" c%d:%d%%", coreId, (unsigned int) usage);
+printf( "<%d>", //msrMPREF.getBits(cpuIndex, 0, 64), msrAPREF.getBits(cpuIndex, 0, 64),
+3600 * msrAPREF.getBits(cpuIndex, 0, 64) / msrMPREF.getBits(cpuIndex, 0, 64));
+
  					prevPerfCounters[cpuIndex] = perfCounter->getCounter(cpuIndex);
  					prevTSCCounters[cpuIndex] = tscCounter->getBits(cpuIndex, 0, 64);
+					prevMPREF[cpuIndex] = msrMPREF.getBits(cpuIndex, 0, 64);
+					prevAPREF[cpuIndex] = msrAPREF.getBits(cpuIndex, 0, 64);
 
 					cpuIndex++;
 				}
 			}
-			Sleep(1000);
+			Sleep(600);
 		}
 
 		perfCounter->disable();
@@ -169,6 +197,8 @@ void Processor::K10PerformanceCounters::perfMonitorCPUUsage(class Processor *p)
 	free(tscCounter);
 	free(prevPerfCounters);
 	free(prevTSCCounters);
+	free(prevMPREF);
+	free(prevAPREF);
 
 	return;
 

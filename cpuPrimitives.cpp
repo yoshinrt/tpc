@@ -12,14 +12,8 @@
 #include "cpuPrimitives.h"
 #include <time.h>
 
-#define DWORD uint32_t
-#define TRUE true
-#define FALSE false
-
 #ifdef _WIN32
-size_t
-pread(int fd, void *buf, size_t count, off_t offset)
-{
+size_t pread(int fd, void *buf, size_t count, off_t offset){
 	size_t retval;
 	off_t saved_pos = lseek(fd, 0, SEEK_CUR);
 
@@ -30,9 +24,7 @@ pread(int fd, void *buf, size_t count, off_t offset)
 	return retval;
 }
 
-size_t
-pwrite(int fd, void *buf, size_t count, off_t offset)
-{
+size_t pwrite(int fd, void *buf, size_t count, off_t offset){
 	size_t retval;
 	off_t saved_pos = lseek(fd, 0, SEEK_CUR);
 

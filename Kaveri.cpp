@@ -13,11 +13,12 @@
 #endif
 
 #include "Processor.h"
-#include "Kaveri.h"
+#include "Interlagos.h"
 #include "Kaveri.h"
 #include "PCIRegObject.h"
 #include "MSRObject.h"
 #include "PerformanceCounter.h"
+//#include "winring.h"
 
 #include "sysdep.h"
 

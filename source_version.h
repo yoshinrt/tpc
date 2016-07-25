@@ -1,1 +1,1 @@
-#define _SOURCE_VERSION "hoge"
+#define _SOURCE_VERSION "(none)"

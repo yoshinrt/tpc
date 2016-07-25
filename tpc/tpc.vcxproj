@@ -186,6 +186,7 @@
     <ClInclude Include="..\source_version.h" />
     <ClInclude Include="..\sysdep.h" />
     <ClInclude Include="..\version.h" />
+    <ClInclude Include="..\winring.h" />
     <ClInclude Include="..\WinRing0\OlsApi.h" />
     <ClInclude Include="..\WinRing0\OlsDef.h" />
   </ItemGroup>
