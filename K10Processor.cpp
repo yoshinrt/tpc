@@ -2892,7 +2892,6 @@ void K10Processor::checkMode () {
 	DWORD oTimeStamp, iTimeStamp;
 	float curVcore;
 	DWORD maxPState;
-	DWORD *hoge = new DWORD[getPowerStates()];
 
 	#define STATES( a, b, c )		states[(( a ) * processorCores + ( b )) * getPowerStates() + ( c )]
 	#define SAVEDSTATES( a, b, c )	savedstates[(( a ) * processorCores + ( b )) * getPowerStates() + ( c )]

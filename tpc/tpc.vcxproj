@@ -178,7 +178,6 @@
     <ClInclude Include="..\Llano.h" />
     <ClInclude Include="..\MSRObject.h" />
     <ClInclude Include="..\MSVC_Round.h" />
-    <ClInclude Include="..\OlsDef.h" />
     <ClInclude Include="..\PCIRegObject.h" />
     <ClInclude Include="..\PerformanceCounter.h" />
     <ClInclude Include="..\Processor.h" />
@@ -188,6 +187,7 @@
     <ClInclude Include="..\sysdep.h" />
     <ClInclude Include="..\version.h" />
     <ClInclude Include="..\WinRing0\OlsApi.h" />
+    <ClInclude Include="..\WinRing0\OlsDef.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

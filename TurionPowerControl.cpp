@@ -24,10 +24,10 @@
 //Include for processor families:
 #include "Griffin.h"
 #include "K10Processor.h"
-#include "Kaveri.h"
 #include "Brazos.h"
 #include "Llano.h"
 #include "Interlagos.h"
+#include "Kaveri.h"
 
 #include "config.h"
 #include "scaler.h"

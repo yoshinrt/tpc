@@ -1,7 +1,11 @@
 #include <stdio.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <io.h>
+#ifdef _WIN32
+	#include <io.h>
+#else
+	#include <unistd.h>
+#endif
 #include <stdlib.h>
 #include <inttypes.h>
 #include <sys/types.h>
@@ -12,6 +16,7 @@
 #define TRUE true
 #define FALSE false
 
+#ifdef _WIN32
 size_t
 pread(int fd, void *buf, size_t count, off_t offset)
 {
@@ -37,6 +42,7 @@ pwrite(int fd, void *buf, size_t count, off_t offset)
 
 	return retval;
 }
+#endif
 
 bool Cpuid (DWORD fn, DWORD *eax, DWORD *ebx, DWORD *ecx, DWORD *edx) {
 
@@ -315,7 +321,7 @@ bool Wrmsr (DWORD msr,DWORD eax,DWORD ebx) {
 	return WrmsrPx (msr, eax, ebx, 0x1);
 }
 
-/*
+#ifndef _WIN32
 void Sleep (DWORD ms) {
 	usleep (ms*1000);
 	return;
@@ -336,4 +342,4 @@ int GetTickCount ()
 	tp.tv_sec += tp.tv_nsec;
 	return tp.tv_sec;
 }	
-*/
+#endif

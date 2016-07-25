@@ -25,6 +25,8 @@ bool Rdmsr (DWORD msr,DWORD *eax,DWORD *ebx) ;
 bool WrmsrPx (DWORD msr,DWORD eax,DWORD ebx,PROCESSORMASK processor);
 bool Wrmsr (DWORD msr,DWORD eax,DWORD ebx);
 
-//void Sleep (DWORD ms);
+#ifndef _WIN32
+void Sleep (DWORD ms);
 
-//int GetTickCount ();
+int GetTickCount ();
+#endif

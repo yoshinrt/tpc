@@ -128,7 +128,7 @@
     <ClInclude Include="..\WinRing0\OlsApi.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="..\OlsDef.h">
+    <ClInclude Include="..\WinRing0\OlsDef.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
