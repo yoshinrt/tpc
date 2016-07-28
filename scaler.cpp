@@ -330,63 +330,6 @@ void Scaler::loopPolicyStep() {
 	free (ps);
 }
 
-void Scaler::loopPolicyLoad() {
-
-	unsigned int enabledPowerStates;
-	DWORD units, cpuIndex, nodeIndex, coreIndex;
-	uint64_t uUsage;
-	unsigned int divisor;
-
-	PState **ps;
-	uint64_t	uTsc, uPrevTsc = 0;
-	
-	units=this->processor->getProcessorCores()*this->processor->getProcessorNodes();
-
-	ps=(PState **)calloc (units, sizeof (PState *));
-
-	for (cpuIndex=0;cpuIndex<units;cpuIndex++)
-		ps[cpuIndex]=new PState(2);
-
-	divisor=(1000000/1000)*this->samplingRate;
-
-	enabledPowerStates=this->processor->getMaximumPState().getPState();
-
-	Signal::activateSignalHandler( SIGINT);
-
-	while (!Signal::getSignalStatus()) {
-
-		uTsc = __rdtsc();
-		if (!this->perfCounter->takeSnapshot())
-			throw "unable to retrieve performance counter data";
-
-		cpuIndex=0;
-
-		for (nodeIndex=0;nodeIndex<this->processor->getProcessorNodes();nodeIndex++) {
-
-			this->processor->setNode(nodeIndex);
-
-			for (coreIndex=0;coreIndex<this->processor->getProcessorCores();coreIndex++) {
-
-				uUsage = (this->perfCounter->getCounter(cpuIndex) - this->prevPerfCounters[cpuIndex]) * 100 /
-					( uTsc - uPrevTsc );
-				
-				printf( "core%d:%d\n", cpuIndex, uUsage );
-				
-				this->prevPerfCounters[cpuIndex] = this->perfCounter->getCounter(cpuIndex);
-				cpuIndex++;
-
-			}
-			uPrevTsc = uTsc;
-		}
-
-		Sleep(this->samplingRate);
-	}
-
-	for (cpuIndex=0;cpuIndex<units;cpuIndex++)
-		free (ps[cpuIndex]);
-
-	free (ps);
-}
 
 void Scaler::createPerformanceTables () {
 
@@ -463,15 +406,12 @@ void Scaler::beginScaling() {
 
 	this->perfCounter->enable();
 
-	switch (POLICY_LOAD/*this->policy*/) {
+	switch (this->policy) {
 	case POLICY_STEP:
 		loopPolicyStep(); //loop will be terminated with a CTRL-C command
 		break;
 	case POLICY_ROCKET:
 		loopPolicyRocket();
-		break;
-	case POLICY_LOAD:
-		loopPolicyLoad();
 		break;
 	}
 

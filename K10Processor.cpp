@@ -275,7 +275,7 @@ float K10Processor::convertVIDtoVcore(DWORD curVid) {
 	 Serial VID Interface is simple to calculate.
 	 To obtain vcore from VID you need to do:
 
-	 vcore = 1,55 ? (VID * 0.0125)
+	 vcore = 1,55 - (VID * 0.0125)
 
 	 The inverse formula to obtain VID from vcore is:
 
