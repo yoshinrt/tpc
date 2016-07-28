@@ -7,6 +7,7 @@
 
 #define POLICY_ROCKET 0
 #define POLICY_STEP 1
+#define POLICY_LOAD 2
 
 #define DEFAULT_SAMPLING_RATE 1000 //Default sampling rate in milliseconds
 
@@ -37,6 +38,7 @@ private:
 	int initializeCounters ();
 	void loopPolicyRocket ();
 	void loopPolicyStep ();
+	void loopPolicyLoad();
 	void createPerformanceTables ();
 
 public:

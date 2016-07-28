@@ -150,7 +150,6 @@
   <ItemGroup>
     <ClCompile Include="..\Brazos.cpp" />
     <ClCompile Include="..\config.cpp" />
-    <ClCompile Include="..\cpuPrimitives.cpp" />
     <ClCompile Include="..\Griffin.cpp" />
     <ClCompile Include="..\Interlagos.cpp" />
     <ClCompile Include="..\K10PerformanceCounters.cpp" />
@@ -170,7 +169,6 @@
   <ItemGroup>
     <ClInclude Include="..\Brazos.h" />
     <ClInclude Include="..\config.h" />
-    <ClInclude Include="..\cpuPrimitives.h" />
     <ClInclude Include="..\Griffin.h" />
     <ClInclude Include="..\Interlagos.h" />
     <ClInclude Include="..\K10Processor.h" />

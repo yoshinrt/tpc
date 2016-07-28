@@ -1,24 +1,30 @@
-#include <stdint.h>
+#include <inttypes.h>
+#include <sys/types.h>
 #include "Processor.h"
 
-#ifndef TRUE
-	#define TRUE true
-	#define FALSE false
+#define DWORD uint32_t
+#define PDWORD DWORD*
+
+#ifdef __LP64__
+	#define DWORD_PTR uint64_t
+#else
+	#define DWORD_PTR uint32_t
 #endif
 
-bool Cpuid (uint32_t fn, uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx);
-bool ReadPciConfigDwordEx (uint32_t devfunc, uint32_t reg, uint32_t *res);
+#define TRUE true
+#define FALSE false
 
-bool WritePciConfigDwordEx (uint32_t devfunc, uint32_t reg, uint32_t res) ;
+bool Cpuid (DWORD fn, DWORD *eax, DWORD *ebx, DWORD *ecx, DWORD *edx);
+bool ReadPciConfigDwordEx (DWORD devfunc, DWORD reg, DWORD *res);
 
-bool RdmsrPx (uint32_t msr,uint32_t *eax,uint32_t *ebx,PROCESSORMASK processor) ;
-bool Rdmsr (uint32_t msr,uint32_t *eax,uint32_t *ebx) ;
+bool WritePciConfigDwordEx (DWORD devfunc, DWORD reg, DWORD res) ;
 
-bool WrmsrPx (uint32_t msr,uint32_t eax,uint32_t ebx,PROCESSORMASK processor);
-bool Wrmsr (uint32_t msr,uint32_t eax,uint32_t ebx);
+bool RdmsrPx (DWORD msr,DWORD *eax,DWORD *ebx,PROCESSORMASK processor) ;
+bool Rdmsr (DWORD msr,DWORD *eax,DWORD *ebx) ;
 
-#ifndef _WIN32
-void Sleep (uint32_t ms);
+bool WrmsrPx (DWORD msr,DWORD eax,DWORD ebx,PROCESSORMASK processor);
+bool Wrmsr (DWORD msr,DWORD eax,DWORD ebx);
+
+void Sleep (DWORD ms);
 
 int GetTickCount ();
-#endif
